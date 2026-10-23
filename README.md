@@ -21,10 +21,10 @@ It is the crux of the matter. Models are good enough now; the failure mode that 
 
 ## Status
 
-The code is being carved out of the hive repo in stages, tracked in [hivecommons/hive#13536](https://github.com/hivecommons/hive/issues/13536). Design record: [`src/docs/design/crux.md`](https://github.com/hivecommons/hive/blob/v5/src/docs/design/crux.md) in hive.
+The code is being carved out of the hive repo in stages. The RFC that defined the stages, [hivecommons/hive#13536](https://github.com/hivecommons/hive/issues/13536), is closed; progress on later stages is recorded in the design record: [`src/docs/design/crux.md`](https://github.com/hivecommons/hive/blob/v5/src/docs/design/crux.md) in hive.
 
-1. **In-repo boundary inside hive** (in progress): `crux.Runtime` interface, architecture ratchet test, tmux funnel, agent-runtime config struct, CI path filters.
-2. **Nested Go module** in hive with its own tags and a `crux` binary: `run`, `ps`, `logs`, `kick`, `stop`.
+1. **In-repo boundary inside hive** (shipped, October 2026): `crux.Runtime` interface, inbound and outbound architecture ratchet tests, tmux funnel, agent-runtime config struct, CI path filters.
+2. **Nested Go module** in hive with its own tags and a `crux` binary: `run`, `ps`, `logs`, `kick`, `stop`. Not started: blocked on cutting the remaining package edges listed in the design record.
 3. **`crux serve`**: an API, auth and quotas; the code moves here and Hive becomes a client. Multi-tenancy when there is a second tenant.
 
 ## What is in scope
