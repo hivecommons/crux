@@ -107,20 +107,15 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-      - name: Has cmd/crux
-        id: has
-        run: |
-          if [ -f cmd/crux/main.go ]; then echo "yes=true" >> "$GITHUB_OUTPUT"
-          else echo "::warning::cmd/crux not yet synced from hive; smoke skipped"; echo "yes=false" >> "$GITHUB_OUTPUT"; fi
       - name: Build crux
-        if: steps.has.outputs.yes == 'true'
         run: go build -trimpath -ldflags "-X main.version=ci-${GITHUB_SHA::12}" -o crux ./cmd/crux
+      - name: Version
+        run: ./crux --version
       - name: Install tmux
-        if: steps.has.outputs.yes == 'true' && runner.os == 'Linux'
+        if: runner.os == 'Linux'
         run: sudo apt-get update -q && sudo apt-get install -y -q tmux
-      - name: Smoke
-        if: steps.has.outputs.yes == 'true'
-        run: .github/scripts/smoke.sh ./crux
+      - name: Smoke (synced scripts/smoke.sh, same as hive's make smoke)
+        run: CRUX_BIN="$PWD/crux" scripts/smoke.sh
 
   goreleaser-check:
     name: goreleaser check + snapshot
@@ -139,7 +134,6 @@ jobs:
           version: "~> v2"
           args: check
       - name: Snapshot build (no publish, no docker, no sign)
-        if: hashFiles('cmd/crux/main.go') != ''
         uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
           version: "~> v2"
