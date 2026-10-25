@@ -15,6 +15,68 @@ These promises are backed by code, not by a prompt. Hive's [security model](http
 
 Hive is the first consumer. It has run this runtime in the open on 27 hives and their production repositories (October 2026): 4,349 agent writes to GitHub in one five-day window, every one through the proxy, 7 refused and on record. Anything that needs a governed agent can be the next consumer.
 
+## Install
+
+```sh
+# Homebrew (macOS, Linux)
+brew install hivecommons/hive/crux
+
+# Go
+go install github.com/hivecommons/crux/cmd/crux@latest
+
+# Container (ships tmux, which the runtime drives)
+docker run --rm ghcr.io/hivecommons/crux:latest --help
+```
+
+Release archives for darwin/linux × amd64/arm64, with sha256 checksums signed
+by cosign (keyless), are on the [releases page](https://github.com/hivecommons/crux/releases).
+
+## Quick start
+
+```sh
+# 1. Serve an (initially empty) runtime on a unix socket.
+crux serve --socket /tmp/crux.sock
+# serving 0 agent definition(s) on unix:///tmp/crux.sock
+
+# 2. From another shell, drive it.
+crux --server /tmp/crux.sock ps
+
+# 3. Run an agent from a definition file (a single-agent YAML definition or
+#    the name of an agent the server was configured with).
+crux --server /tmp/crux.sock run agent.yaml
+crux --server /tmp/crux.sock logs <name>
+crux --server /tmp/crux.sock kick <name> "look at issue #12"
+crux --server /tmp/crux.sock stop <name>
+```
+
+`crux serve --config hive.yaml` serves the enabled agents of a hive
+configuration; `--listen 127.0.0.1:PORT --token T` adds a loopback TCP
+listener (refused without a token). Set `CRUX_SERVER` / `CRUX_TOKEN` instead
+of passing `--server` / `--token` every time. The HTTP+JSON API behind the
+CLI is documented in hive's
+[`crux serve`](https://github.com/hivecommons/hive/blob/v5/src/docs/crux-serve.md)
+and [`crux` CLI](https://github.com/hivecommons/hive/blob/v5/src/docs/crux-cli.md)
+pages; the Go client is `github.com/hivecommons/crux/api`.
+
+## How this repository is produced
+
+The Go code here is **not edited in this repository** (see [Status](#status)
+for the source of truth). Hive's
+[`crux-sync`](https://github.com/hivecommons/hive/blob/v5/.github/workflows/crux-sync.yml)
+workflow copies `src/crux` here on every change, rewriting the module path
+`github.com/hivecommons/hive/crux` → `github.com/hivecommons/crux`;
+`.hive-sync` names the exact hive commit this tree came from, and the
+`Sync guard` check refuses pull requests here that touch Go code.
+
+- Releases are cut by tagging hive `crux/vX.Y.Z`; the sync pushes `vX.Y.Z`
+  here and the release workflow builds the binaries, image and checksums.
+- Only the scaffolding is maintained here: `.github/`, `.goreleaser.yaml`,
+  `Dockerfile`, this README, `LICENSE`.
+- The module's own README is synced to [`docs/MODULE.md`](docs/MODULE.md).
+- How the publish works, and why it is a plain copy rather than a subtree
+  split: [`src/docs/crux-publish.md`](https://github.com/hivecommons/hive/blob/v5/src/docs/crux-publish.md)
+  in hive.
+
 ## Why "Crux"
 
 It is the crux of the matter. Models are good enough now; the failure mode that matters is an agent doing the wrong thing with the right skills. Crux is the point everything turns on: the layer where trust, productivity and non-rogue behaviour are decided in code, not in a prompt.
