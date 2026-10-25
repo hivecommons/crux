@@ -1,0 +1,146 @@
+name: CI
+
+# The Go code here is a synced copy of hivecommons/hive src/crux (see
+# .hive-sync). This CI proves the published, module-path-rewritten tree
+# builds, vets, tests and serves on its own; hive's CI is where the code is
+# actually gated. Fix failures in hive, never here.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: build+vet+test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Module is standalone
+        run: |
+          set -euo pipefail
+          test -f .hive-sync && cat .hive-sync
+          grep -qx 'module github.com/hivecommons/crux' go.mod
+          if grep -rn --include='*.go' '"github.com/hivecommons/hive' . ; then
+            echo "::error::tree still imports the hive module path; the sync rewrite is incomplete" >&2
+            exit 1
+          fi
+          test -z "$GOWORK" || { echo "::error::GOWORK must be unset" >&2; exit 1; }
+          go mod verify
+      - run: go build ./...
+      - run: go vet ./...
+      - name: go test -short -race (all but agent)
+        # Same flags as hive's v2-tests lanes (-short -race -count=1). The
+        # tmux-bound tests in hive skip themselves via internal/testutil
+        # (SkipUnlessRequired) unless HIVE_TEST_REQUIRE_BEHAVIOURAL=1, which is
+        # deliberately NOT set here: this lane proves the published module, not
+        # the tmux integration hive already gates. ./agent is its own job below
+        # because it alone takes ~7 minutes of test time.
+        run: |
+          # shellcheck disable=SC2046
+          go test -short -race -count=1 -timeout 20m $(go list ./... | grep -v '/agent$')
+
+  test-agent:
+    name: go test ./agent (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Install tmux
+        run: sudo apt-get update -q && sudo apt-get install -y -q tmux
+      - run: go test -short -race -count=1 -timeout 35m ./agent/...
+
+  lint:
+    name: golangci-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: latest
+          args: --timeout=10m
+
+  smoke:
+    name: smoke crux serve (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Has cmd/crux
+        id: has
+        run: |
+          if [ -f cmd/crux/main.go ]; then echo "yes=true" >> "$GITHUB_OUTPUT"
+          else echo "::warning::cmd/crux not yet synced from hive; smoke skipped"; echo "yes=false" >> "$GITHUB_OUTPUT"; fi
+      - name: Build crux
+        if: steps.has.outputs.yes == 'true'
+        run: go build -trimpath -ldflags "-X main.version=ci-${GITHUB_SHA::12}" -o crux ./cmd/crux
+      - name: Install tmux
+        if: steps.has.outputs.yes == 'true' && runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -y -q tmux
+      - name: Smoke
+        if: steps.has.outputs.yes == 'true'
+        run: .github/scripts/smoke.sh ./crux
+
+  goreleaser-check:
+    name: goreleaser check + snapshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
+        with:
+          version: "~> v2"
+          args: check
+      - name: Snapshot build (no publish, no docker, no sign)
+        if: hashFiles('cmd/crux/main.go') != ''
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
+        with:
+          version: "~> v2"
+          args: release --snapshot --clean --skip=publish,docker,sign,sbom

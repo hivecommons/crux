@@ -1,0 +1,115 @@
+# goreleaser config for hivecommons/crux. Runs from .github/workflows/release.yml
+# on tags vX.Y.Z, which the hive sync workflow pushes when hive is tagged
+# crux/vX.Y.Z. The Go code in this repository is a synced copy of
+# hivecommons/hive src/crux; only this scaffolding is maintained here.
+version: 2
+
+project_name: crux
+
+before:
+  hooks:
+    - go mod download
+
+builds:
+  - id: crux
+    main: ./cmd/crux
+    binary: crux
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: tar
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+signs:
+  - cmd: cosign
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - --yes
+      - --output-certificate=${certificate}
+      - --output-signature=${signature}
+      - ${artifact}
+    artifacts: checksum
+    output: true
+
+dockers:
+  - id: linux-amd64
+    goos: linux
+    goarch: amd64
+    use: buildx
+    dockerfile: Dockerfile.goreleaser
+    image_templates:
+      - ghcr.io/hivecommons/crux:{{ .Version }}-amd64
+    build_flag_templates:
+      - --platform=linux/amd64
+      - --label=org.opencontainers.image.title=crux
+      - --label=org.opencontainers.image.source=https://github.com/hivecommons/crux
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=Apache-2.0
+  - id: linux-arm64
+    goos: linux
+    goarch: arm64
+    use: buildx
+    dockerfile: Dockerfile.goreleaser
+    image_templates:
+      - ghcr.io/hivecommons/crux:{{ .Version }}-arm64
+    build_flag_templates:
+      - --platform=linux/arm64
+      - --label=org.opencontainers.image.title=crux
+      - --label=org.opencontainers.image.source=https://github.com/hivecommons/crux
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.licenses=Apache-2.0
+
+docker_manifests:
+  - name_template: ghcr.io/hivecommons/crux:{{ .Version }}
+    image_templates:
+      - ghcr.io/hivecommons/crux:{{ .Version }}-amd64
+      - ghcr.io/hivecommons/crux:{{ .Version }}-arm64
+  - name_template: ghcr.io/hivecommons/crux:latest
+    skip_push: "{{ if .Prerelease }}true{{ end }}"
+    image_templates:
+      - ghcr.io/hivecommons/crux:{{ .Version }}-amd64
+      - ghcr.io/hivecommons/crux:{{ .Version }}-arm64
+
+docker_signs:
+  - cmd: cosign
+    artifacts: manifests
+    args: [sign, --yes, "${artifact}"]
+    output: true
+
+changelog:
+  use: github-native
+
+release:
+  github:
+    owner: hivecommons
+    name: crux
+  prerelease: auto
+  footer: |
+    ---
+    **Source of truth:** this repository is a synced, module-path-rewritten copy of
+    [hivecommons/hive `src/crux`](https://github.com/hivecommons/hive/tree/v5/src/crux).
+    The hive commit this release was cut from is recorded in `.hive-sync` at the tag.
+
+    ```sh
+    brew install hivecommons/hive/crux
+    go install github.com/hivecommons/crux/cmd/crux@{{ .Tag }}
+    docker run --rm ghcr.io/hivecommons/crux:{{ .Version }} --help
+    ```

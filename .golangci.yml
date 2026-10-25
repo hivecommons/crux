@@ -1,0 +1,27 @@
+# Lint config for the published copy of hivecommons/hive src/crux. Mirrors the
+# enabled set and staticcheck scope of hive's src/.golangci.yml (minus hive's
+# depguard rules, which name root-module packages) so the rewritten tree is
+# held to exactly the gate it already passes in hive. Tighten there, not here.
+version: "2"
+
+run:
+  timeout: 10m
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - govet
+    - misspell
+    - ineffassign
+    - unused
+    - staticcheck
+  settings:
+    staticcheck:
+      checks: ["SA*", "-SA1019"]
+  exclusions:
+    generated: lax
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

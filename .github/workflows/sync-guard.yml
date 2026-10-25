@@ -1,0 +1,63 @@
+name: Sync guard
+
+# The Go code in this repository is produced by hivecommons/hive's
+# crux-sync workflow from src/crux there. A pull request here that edits Go
+# code would be overwritten by the next sync, so it is refused with a pointer
+# to the source of truth. Scaffolding (.github/, .goreleaser.yaml, Dockerfile,
+# README.md, LICENSE) is maintained here and passes.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Refuse Go edits from non-sync actors
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          ACTOR: ${{ github.actor }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          set -euo pipefail
+          # The sync pushes straight to main (no PR), so any PR here is by
+          # definition not the sync. Keep an allowlist anyway for a future
+          # PR-based sync actor.
+          case "$ACTOR" in
+            hive-release[bot]|hivecommons-hive[bot]) echo "sync actor $ACTOR; skipping"; exit 0 ;;
+          esac
+          files="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --paginate --jq '.[].filename')"
+          go_files="$(printf '%s\n' "$files" | grep -E '(\.go|^go\.mod|^go\.sum|^\.hive-sync)$' || true)"
+          if [ -z "$go_files" ]; then
+            echo "No Go/module files touched; scaffolding-only change is fine here."
+            exit 0
+          fi
+          marker="<!-- crux-sync-guard -->"
+          # shellcheck disable=SC2016
+          list="$(printf '%s\n' "$go_files" | sed 's/^/- `/; s/$/`/')"
+          body="$marker
+          ### This repository is a synced copy
+
+          The Go code here is generated from [\`hivecommons/hive\` \`src/crux\`](https://github.com/hivecommons/hive/tree/v5/src/crux) by hive's \`crux-sync\` workflow and would be overwritten by the next sync. Please open this change as a pull request against **hivecommons/hive** (base \`v5\`, under \`src/crux/\`); it will be published here automatically once it merges.
+
+          Files this PR touches that are owned by the sync:
+          $list
+
+          Only scaffolding is maintained in this repository: \`.github/\`, \`.goreleaser.yaml\`, \`Dockerfile\`, \`README.md\`, \`LICENSE\`."
+          # Strip the YAML indentation the lines above carry.
+          body="$(printf '%s\n' "$body" | sed 's/^          //')"
+          existing="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -1)"
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -f body="$body" >/dev/null
+          else
+            gh pr comment "$PR" --body "$body"
+          fi
+          echo "::error::PR touches sync-owned files ($(printf '%s' "$go_files" | tr '\n' ' ')). Source of truth is hivecommons/hive src/crux."
+          exit 1

@@ -1,0 +1,12 @@
+# Used only by goreleaser (.goreleaser.yaml), which copies in the binary it
+# already cross-compiled for the target platform. Keep the runtime layer in
+# step with Dockerfile.
+FROM alpine:3.22
+RUN apk add --no-cache tmux ca-certificates git openssh-client bash \
+ && adduser -D -u 1000 crux
+COPY crux /usr/local/bin/crux
+USER crux
+WORKDIR /home/crux
+ENV CRUX_SOCKET=/home/crux/crux.sock
+ENTRYPOINT ["crux"]
+CMD ["--help"]
