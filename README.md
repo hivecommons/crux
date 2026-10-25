@@ -7,8 +7,8 @@ Crux is the agent runtime inside [Hive](https://github.com/hivecommons/hive), sp
 | Promise | What it means | How Crux keeps it |
 |---|---|---|
 | **Productive** | Agents ship real work on real repos, continuously, without a human babysitting each run. | Short-lived agents with a clean context, external context injected per run, stall and crash-loop recovery, kicks and nudges, seven engines behind one interface. |
-| **Non-rogue** | An agent cannot act outside the scope it was given, even if the model wants to. | Limits enforced in code at the tool boundary: a MITM proxy in front of every write, tool approval, per-agent identity and credentials, container and Kubernetes isolation. |
-| **Tamper-evident** | If prompt injection, a hostile repo or a bad dependency does bend an agent, it leaves a trace and hits a boundary that can refuse it. Nothing happens off the record. | No agent self-report is trusted. Every write passes a boundary that logs it and can refuse it; policy lives outside the model; sandboxed execution; scrubbed logs; signed, scoped credentials that expire. |
+| **Non-rogue** | An agent cannot act outside the scope it was given, even if the model wants to. | Limits enforced in code at the tool boundary: a MITM proxy in front of every write, tool approval, per-agent identity and credentials, and an opt-in per-task sandbox (rootless container or Kubernetes Job) behind one launcher seam; see [Isolation](#isolation) for what is default and what is not. |
+| **Tamper-evident** | If prompt injection, a hostile repo or a bad dependency does bend an agent, it leaves a trace and hits a boundary that can refuse it. Nothing happens off the record. | No agent self-report is trusted. Every write passes a boundary that logs it and can refuse it; policy lives outside the model; a credential-free workspace when sandboxed; scrubbed logs; signed, scoped credentials that expire. |
 | **Governed** | A human owns the record of what happened and why, and can stop it. | A gate before anything lands, trust levels that decide how much runs unattended, an audit log and telemetry via [pluk](https://github.com/hivecommons/pluk), and evidence a reviewer can check. |
 
 These promises are backed by code, not by a prompt. Hive's [security model](https://github.com/hivecommons/hive/blob/v5/src/docs/security-model.md) is the inventory: 38 controls that protect maintainers from the agents they run, each one tied to a file path, config key or ADR, with a section on [what is not done yet](https://github.com/hivecommons/hive/blob/v5/src/docs/security-model.md#11-what-hive-does-not-do-yet) and [how to audit a running hive](https://github.com/hivecommons/hive/blob/v5/src/docs/security-model.md#12-how-to-audit-a-running-hive). The agent-runtime controls in that list are the ones that move into Crux.
@@ -21,11 +21,23 @@ It is the crux of the matter. Models are good enough now; the failure mode that 
 
 ## Status
 
-The code is being carved out of the hive repo in stages, tracked in [hivecommons/hive#13536](https://github.com/hivecommons/hive/issues/13536). Design record: [`src/docs/design/crux.md`](https://github.com/hivecommons/hive/blob/v5/src/docs/design/crux.md) in hive.
+Source of truth: [`src/crux`](https://github.com/hivecommons/hive/tree/v5/src/crux) in [hivecommons/hive](https://github.com/hivecommons/hive), the nested Go module `github.com/hivecommons/hive/crux`. This repository is synced from it and published as `github.com/hivecommons/crux`. File issues and PRs in hive. Design record: [`src/docs/design/crux.md`](https://github.com/hivecommons/hive/blob/v5/src/docs/design/crux.md); tracker: [hivecommons/hive#14138](https://github.com/hivecommons/hive/issues/14138) (stage 1 was [#13536](https://github.com/hivecommons/hive/issues/13536), closed).
 
-1. **In-repo boundary inside hive** (in progress): `crux.Runtime` interface, architecture ratchet test, tmux funnel, agent-runtime config struct, CI path filters.
-2. **Nested Go module** in hive with its own tags and a `crux` binary: `run`, `ps`, `logs`, `kick`, `stop`.
-3. **`crux serve`**: an API, auth and quotas; the code moves here and Hive becomes a client. Multi-tenancy when there is a second tenant.
+Shipped:
+
+- In-repo boundary inside hive: `crux.Runtime` interface, inbound and outbound architecture ratchets, tmux funnel, agent-runtime config struct, CI path filters.
+- Nested Go module `github.com/hivecommons/hive/crux` at `src/crux`, joined to the hive root module by a Go workspace.
+- `crux` CLI: `run`, `ps`, `logs`, `kick`, `stop`.
+- `crux serve`: HTTP+JSON over a Unix socket that is `0600` from the moment it is reachable; TCP only behind a bearer token; server-sent events for lifecycle and kick streams. Wire contract in `crux/api`, stdlib-only so a client does not link the runtime.
+- Go client (`api.NewClient`) and CLI remote mode (`crux --server ADDR` / `CRUX_SERVER`).
+- Inbound coupling from hive down to a single `cmd/hive` row; outbound coupling from the runtime back into hive is zero.
+
+Next, in the order #14138 lists them:
+
+- Hive consuming its own serve API as a staged sidecar (runtime seam first, in-process stays the default until parity is proven).
+- Credential callbacks: the runtime never holds the GitHub App key; hive mints scoped tokens through callbacks.
+- Sandbox runtime adapters per [ADR-0026](https://github.com/hivecommons/hive/blob/v5/src/docs/adr/0026-sandbox-runtime-selection.md); see [Isolation](#isolation).
+- Release train: `crux/vX.Y.Z` tags and `cmd/crux` moving into the nested module.
 
 ## What is in scope
 
@@ -33,11 +45,22 @@ The code is being carved out of the hive repo in stages, tracked in [hivecommons
 - Lifecycle: start, observe, nudge, stall and crash-loop recovery, stop.
 - Engines: Claude, Copilot, Gemini, Goose, Codex, Aider, Bob; any OpenAI-compatible model through the gateway.
 - Policy enforcement at the tool boundary: MITM proxy, tool approval.
-- Isolation: container sandbox, Kubernetes job.
+- Isolation: shared container by default; opt-in per-task sandbox (rootless Podman container or Kubernetes Job) behind the `sandbox.Launcher` seam.
 - Identity, credentials, entitlements.
 - Telemetry and audit via pluk.
 
 Staying in Hive: governor, GitHub and forge integration, review swarm, evidence, dashboard, hub.
+
+## Isolation
+
+What isolation is today, stated plainly:
+
+- **Default: shared container, separated by Unix user.** Agents in one hive run in the same container as the runtime. The boundary around them is the MITM proxy, tool approval, scoped credentials and the audit record, not a kernel-enforced sandbox.
+- **Opt-in: a sandbox per task.** With the sandbox enabled, each kick runs in its own rootless Podman container or, with `sandbox.runtime: job`, a Kubernetes Job in the hive's namespace. The workspace is prepared outside the sandbox and is credential-free: no GitHub token enters, and credential-named environment variables are filtered out. Commits are read back after the run and pushed by the push broker, which scans the diff and mints a short-lived scoped token outside the sandbox. GitHub stays mediated by the proxy.
+- **One seam.** Both runtimes implement `crux/sandbox.Launcher`, a single method: `Run(ctx, LaunchSpec) (Result, error)`. A stronger runtime is one more adapter behind that interface, not a redesign.
+- **Under evaluation.** [ADR-0026](https://github.com/hivecommons/hive/blob/v5/src/docs/adr/0026-sandbox-runtime-selection.md) (Proposed) sets the contract an adapter must satisfy (C1-C6: prepared workspace in, credential-free, broker pushes, proxy mediates GitHub, transcript and exit code out, no privileged pods on hosted spokes) and evaluates NVIDIA OpenShell and AAIF OpenSandbox against it. It recommends OpenShell on paper; the prototype on a hive spoke ([hivecommons/hive#14092](https://github.com/hivecommons/hive/issues/14092)) is pending and no integration exists yet. The default stays shared-container until an adapter is proven on a hosted spoke.
+
+In every mode, no agent self-report is trusted: what an agent did is what the proxy, the broker and the audit log recorded. Details: hive's [sandbox isolation](https://github.com/hivecommons/hive/blob/v5/src/docs/sandbox-isolation.md) (threat model, hub versus contributor paths, remaining gaps) and the [security model](https://github.com/hivecommons/hive/blob/v5/src/docs/security-model.md#3-agent-runtime-isolation).
 
 ## What else could run on Crux
 
