@@ -42,7 +42,7 @@ jobs:
             echo "::error::tree still imports the hive module path; the sync rewrite is incomplete" >&2
             exit 1
           fi
-          test -z "$GOWORK" || { echo "::error::GOWORK must be unset" >&2; exit 1; }
+          test -z "${GOWORK:-}" || { echo "::error::GOWORK must be unset" >&2; exit 1; }
           go mod verify
       - run: go build ./...
       - run: go vet ./...
