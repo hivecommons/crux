@@ -2,3 +2,6 @@
 /dist/
 *.test
 *.out
+# Test-run scratch: crux/agent tests create stub CLI binaries under a
+# per-run directory (mirrors hive's .gitignore).
+.hive-agent-stubs-*/
