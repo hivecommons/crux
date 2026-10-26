@@ -196,6 +196,13 @@ touch Go files. Only the scaffolding is maintained in this repository:
 `.github/`, `.goreleaser.yaml`, `Dockerfile`, this README and `LICENSE`.
 The module's own README is synced to [`docs/MODULE.md`](docs/MODULE.md).
 
+CI here applies the same gates Hive applies to this code: build, vet,
+`go test -short -race`, Hive's per-package coverage floors
+([`.github/scripts/coverage-floors.sh`](.github/scripts/coverage-floors.sh)),
+golangci-lint, govulncheck, gosec (advisory, as in Hive), action-pin
+resolution, a `crux serve` smoke and a goreleaser snapshot. The floors are
+copied from Hive's `v2-tests.yml`; change them there first.
+
 So: file issues and code changes in
 [hivecommons/hive](https://github.com/hivecommons/hive). Releases are cut
 by tagging Hive `crux/vX.Y.Z`. How the publish works is in

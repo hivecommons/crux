@@ -2,8 +2,12 @@ name: CI
 
 # The Go code here is a synced copy of hivecommons/hive src/crux (see
 # .hive-sync). This CI proves the published, module-path-rewritten tree
-# builds, vets, tests and serves on its own; hive's CI is where the code is
-# actually gated. Fix failures in hive, never here.
+# builds, vets, tests and serves on its own, and applies the same gates hive
+# applies to the same code (per-package coverage floors, govulncheck, gosec,
+# golangci-lint, action-pin resolution) so this repository can be the real
+# gate once hive consumes the module from here. Fix Go failures in hive,
+# never here; only .github/ and the scaffolding listed in
+# src/scripts/crux-publish.sh KEEP are maintained in this repository.
 
 on:
   push:
@@ -53,9 +57,21 @@ jobs:
         # deliberately NOT set here: this lane proves the published module, not
         # the tmux integration hive already gates. ./agent is its own job below
         # because it alone takes ~7 minutes of test time.
+        #
+        # -cover and the log capture feed the coverage job below, which
+        # applies hive's per-package floors to the combined logs.
         run: |
           # shellcheck disable=SC2046
-          go test -short -race -count=1 -timeout 20m $(go list ./... | grep -v '/agent$')
+          go test -short -race -count=1 -timeout 20m -cover $(go list ./... | grep -v '/agent$') 2>&1 | tee test-rest.log
+          exit "${PIPESTATUS[0]}"
+      - name: Upload test log for the coverage gate
+        if: ${{ always() && runner.os == 'Linux' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-log-rest
+          path: test-rest.log
+          if-no-files-found: error
+          retention-days: 1
 
   test-agent:
     name: go test ./agent (${{ matrix.os }})
@@ -74,7 +90,45 @@ jobs:
           go-version-file: go.mod
       - name: Install tmux
         run: sudo apt-get update -q && sudo apt-get install -y -q tmux
-      - run: go test -short -race -count=1 -timeout 35m ./agent/...
+      - name: go test -short -race ./agent/...
+        run: |
+          go test -short -race -count=1 -timeout 35m -cover ./agent/... 2>&1 | tee test-agent.log
+          exit "${PIPESTATUS[0]}"
+      - name: Upload test log for the coverage gate
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-log-agent
+          path: test-agent.log
+          if-no-files-found: error
+          retention-days: 1
+
+  coverage:
+    # Same gate as hive's "Check per-package coverage" step (v2-tests.yml,
+    # coverage-hourly.yml): every package scored against a 90% default floor
+    # or its documented override, FAIL and "no test files" are hard failures,
+    # and a package that produced no result at all fails closed. Runs even
+    # when a test job failed so the verdict names the package rather than
+    # being skipped (hive learned that the hard way).
+    name: coverage floors
+    needs: [build, test-agent]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: test-log-*
+          path: logs
+          merge-multiple: true
+      - name: Check per-package coverage against hive's floors
+        run: bash .github/scripts/coverage-floors.sh logs/test-rest.log logs/test-agent.log
 
   lint:
     name: golangci-lint
@@ -89,8 +143,70 @@ jobs:
           go-version-file: go.mod
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
-          version: latest
+          # Same pin as hive's go-security-analysis.yml golangci-lint job.
+          version: v2.13.1
           args: --timeout=10m
+
+  govulncheck:
+    # Mirrors hive's go-security-analysis.yml govulncheck job: reachability-
+    # based, so a finding means this code CALLS a vulnerable symbol.
+    name: govulncheck (known vulnerabilities)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      # Installed by version, not via a marketplace action, so the tool itself
+      # is pinned (same pin as hive). GOTOOLCHAIN=local: the tool must be built
+      # with the go.mod toolchain, or x/tools inside it rejects the module's
+      # language version ("package requires newer Go version").
+      - name: Install govulncheck
+        run: GOTOOLCHAIN=local go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+      - name: Scan
+        run: govulncheck ./...
+
+  gosec:
+    # Mirrors hive's go-security-analysis.yml gosec job, including its
+    # deliberately NON-BLOCKING status: the same pre-existing backlog hive is
+    # triaging under hive #4903 exists in this tree, and flipping this to
+    # blocking is the last step of that issue, in hive. Findings are visible in
+    # the log on every PR; do not delete the step to make the summary clean.
+    name: gosec (insecure patterns)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      # Version floor is load-bearing (same pin as hive): older gosec pins an
+      # x/tools that does not compile under current Go.
+      - name: Install gosec
+        run: GOTOOLCHAIN=local go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0
+      - name: Scan
+        continue-on-error: true
+        run: gosec -exclude-generated ./...
+
+  action-pins:
+    # Mirrors hive's action-pins job: every `uses:` must be a 40-hex SHA that
+    # resolves, no empty expression delimiters, no bracketed bot emails.
+    name: action pins resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check every pinned action SHA exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/check-action-pins.sh .github/workflows
 
   smoke:
     name: smoke crux serve (${{ matrix.os }})
