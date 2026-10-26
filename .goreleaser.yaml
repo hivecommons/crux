@@ -38,7 +38,10 @@ checksum:
 signs:
   - cmd: cosign
     # cosign v3 writes one sigstore bundle (certificate + signature + log entry).
-    # Verify: cosign verify-blob --bundle checksums.txt.sigstore.json checksums.txt
+    # Verify (identity and issuer pins are required for keyless; see README):
+    #   cosign verify-blob checksums.txt --bundle checksums.txt.sigstore.json \
+    #     --certificate-identity-regexp '^https://github\.com/hivecommons/crux/\.github/workflows/release\.yml@' \
+    #     --certificate-oidc-issuer https://token.actions.githubusercontent.com
     signature: "${artifact}.sigstore.json"
     args:
       - sign-blob

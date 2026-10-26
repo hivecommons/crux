@@ -54,14 +54,28 @@ Or download a release archive from the
 [releases page](https://github.com/hivecommons/crux/releases). There is
 one for darwin and linux, each for amd64 and arm64. The checksums are
 signed with cosign. cosign is a tool that proves a file was published by
-this repo's release workflow and not changed since. To check:
+this repo's release workflow and not changed since. That proof only holds
+when you tell cosign which signer to expect, so the identity and issuer
+flags below are required: cosign refuses to run without them, and a
+wildcard would accept a signature from anyone. To check:
 
 ```sh
 # from the v0.1.0 release page, download these three files first
-cosign verify-blob --bundle checksums.txt.sigstore.json checksums.txt
+cosign verify-blob checksums.txt \
+  --bundle checksums.txt.sigstore.json \
+  --certificate-identity-regexp '^https://github\.com/hivecommons/crux/\.github/workflows/release\.yml@' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
 sha256sum -c checksums.txt --ignore-missing
 tar xzf crux_0.1.0_linux_amd64.tar.gz
 ./crux --version
+```
+
+The container image is signed the same way:
+
+```sh
+cosign verify ghcr.io/hivecommons/crux:0.1.0 \
+  --certificate-identity-regexp '^https://github\.com/hivecommons/crux/\.github/workflows/release\.yml@' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
 The agent CLIs themselves (for example `copilot` or `claude`) are not
