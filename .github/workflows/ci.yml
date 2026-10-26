@@ -64,7 +64,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        # Pinned to 24.04 while the crux/agent tmux restart tests' 5s
+        # readiness budget does not hold on the 26.04 image (tmux 3.6a); see
+        # hivecommons/hive#14423. Return to ubuntu-latest once that lands and
+        # is synced here.
+        os: [ubuntu-24.04]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
