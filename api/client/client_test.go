@@ -83,9 +83,8 @@ func TestParityInterfaceVersusRouteTable(t *testing.T) {
 // TestParityHostVersusSetterTable holds crux.Host and api.HostSetters to
 // each other: every setter has a disposition (route | callback | event |
 // config | in-process-only) and every row names a setter. Callback rows
-// must name a callback endpoint route the callback package registers
-// (or one the stage-4 credential-writer PR is about to), event rows an
-// event type the runtime emits.
+// must name a callback endpoint route the callback package registers,
+// event rows an event type the runtime emits.
 func TestParityHostVersusSetterTable(t *testing.T) {
 	typ := reflect.TypeOf((*crux.Host)(nil)).Elem()
 	setters := map[string]bool{}
@@ -103,9 +102,7 @@ func TestParityHostVersusSetterTable(t *testing.T) {
 		callback.PathTokens: true, callback.PathPolicy: true, callback.PathRepoAutoMerge: true,
 		callback.PathLinearCredential: true, callback.PathPulls: true, callback.PathConditions: true,
 		callback.PathInferenceRoutes + "/{agent}": true, callback.PathEffects: true, callback.PathEffects + "/{id}/end": true,
-		// Stage-4 credential writers (hivecommons/hive#14138) add these;
-		// their PR replaces the literals with the callback constants.
-		"/v1/tokens/mint": true, "/v1/bob/credential": true,
+		callback.PathAgentMint: true, callback.PathBobCredential: true,
 	}
 	events := map[string]bool{api.EventKickOutcome: true, api.EventPauseTransition: true, api.EventRelaunch: true, api.EventPausePersist: true, api.EventPrompt: true, api.EventSandboxAudit: true, api.EventAudit: true, api.EventCondition: true}
 	for name, row := range api.HostSetters {
@@ -455,6 +452,21 @@ func TestUnreachableServerAnswersZero(t *testing.T) {
 		t.Fatal(err)
 	}
 	rt.Timeout = 2 * time.Second
+	// Writes with an error return refuse with crux.ErrRuntimeUnavailable
+	// (hivecommons/hive#14138 stage 4: kicks are not queued) and the
+	// client's Status says the runtime is gone.
+	if err := rt.SendKick("a", "m"); !errors.Is(err, crux.ErrRuntimeUnavailable) || !errors.Is(err, api.ErrUnreachable) {
+		t.Fatalf("SendKick on dead runtime = %v", err)
+	}
+	if st := rt.Status(); st.Reachable || st.FailedCalls == 0 || st.LastError == "" {
+		t.Fatalf("Status after failures = %+v", st)
+	}
+	if err := rt.Stop("a"); !errors.Is(err, crux.ErrRuntimeUnavailable) {
+		t.Fatalf("Stop = %v", err)
+	}
+	if err := rt.Resume(context.Background(), "a", "t", "r"); !errors.Is(err, crux.ErrRuntimeUnavailable) {
+		t.Fatalf("Resume = %v", err)
+	}
 	if rt.IsPaused("a") || rt.AllStatuses() != nil || rt.ResolveAgent("a") != "a" || rt.FullLogHeader("a") != "" {
 		t.Error("observer reads must be zero")
 	}
