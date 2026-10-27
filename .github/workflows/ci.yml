@@ -127,6 +127,8 @@ jobs:
           pattern: test-log-*
           path: logs
           merge-multiple: true
+      - name: Coverage gate self-test
+        run: bash .github/scripts/test-coverage-floors.sh
       - name: Check per-package coverage against hive's floors
         run: bash .github/scripts/coverage-floors.sh logs/test-rest.log logs/test-agent.log
 
