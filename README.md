@@ -198,6 +198,196 @@ Progress is tracked in
 The design record is
 [`src/docs/design/crux.md`](https://github.com/hivecommons/hive/blob/v5/src/docs/design/crux.md).
 
+## What crux exposes
+
+Crux has three layers you can build on. Each one is a Go package in this
+repository. The first is the Go interface. The second is the same thing
+over HTTP. The third is what crux asks the host for in return.
+
+### 1. `crux.Runtime`, the Go interface
+
+`crux.Runtime` lives in [`runtime.go`](runtime.go). Today it runs in the
+same process as the host. After stage 5 of the sidecar work it can also be
+backed by the API in layer 2, with no change to the caller. It is made of
+eleven smaller interfaces, one per job:
+
+| Role | Methods |
+|---|---|
+| `Lifecycle` | `Start`, `Stop`, `Restart`, `RestartWithBootstrap`, `Pause`, `PauseBy`, `Resume`, `IsPaused`, `ResetRestartCount` |
+| `Observer` | `GetStatus`, `GetStatusFast`, `AllStatuses`, `ResolveAgent`, `GetOutput`, `GetBufferOutput`, `CaptureFullLog`, `FullLogHeader` |
+| `Kicker` | `SendKick`, `SendKickAsync`, `ValidateKick`, `KickDispatchState`, `ListKickLogs`, `ReadKickLog`, `SetKickObserver` |
+| `Definitions` | `AddAgent`, `RemoveAgent`, `UpdateConfig`, `ReconcileAgents`, `SetModelOverride`, `SetBackendOverride`, `PinCLI`, `PinModel`, `UnpinCLI`, `UnpinModel`, `ClearModeOverrides`, `SyncModeFiles`, `RefreshInferenceRoutes` |
+| `Fleet` | `BreakerState`, `EngageBreaker`, `ReleaseBreaker`, `SetACMMLevel`, `GetACMMLevel` (the fleet trust level), `RelaunchBobAgentsAwaitingKey`, `SharedDevUID` |
+| `Credentials` | `SubmitLoginCode`, `CopilotToken`, `CopilotTokenSource`, `SetCopilotToken`, `ActivateCopilotToken`, `ReloadClaudeToken`, `ClaudeCredentialCandidatePaths` |
+| `Resumer` | `ResumeHandle`, `SendResumeKick`, `SessionID`, `SessionMissing` |
+| `Supervisor` | `GovernorMayStart`, `MarkStartupLaunchQueued`, `CheckAndRestartCrashedAgents`, `ConsentWedgedAgents`, `RefreshAgentTokens`, `RefreshAgentTokenFor`, `AgentCredentialRefreshable`, `AgentHasValidCredential`, `AgentCapabilities`, `EffectiveBackend`, `InvocationMetadata`, `RestartTelemetry`, `StartFailureState`, `ProviderErrorBackoffRemaining`, `PauseByCause`, `ArchiveAllKickLogs`, `CountAgentsWithModel`, `CrashOOMSuspected`, `BackendAuthAvailable`, `AgentAuthAvailable`, `SendGitHubAPIBudgetNudge`, `RecordAudit`, `TrajectoryAgents` |
+| `Restorer` | `SeedPauseState`, `SeedRestartTelemetry`, `SeedTurnLoss`, `SeedLastKick`, `SeedKickHistory`, `RestoreBreaker` |
+| `Background` | `StartAgentTokenRefresh`, `StartCredentialWatchdog`, `StartCopilotSessionRefresh`, `StartTranscriptActivityRefresh` |
+| `Authorizer` | `AuthorizePROpen`, `AuthorizePushBranch`, `AuthorizeIssueOpen`, `AuthorizeMerge`, `AuthorizeReviewRequest` |
+
+In short: `Lifecycle` starts and stops agents. `Observer` reads their state
+and screen. `Kicker` sends them work. `Definitions` edits what they are.
+`Fleet` acts on all of them at once. `Credentials` handles logins.
+`Resumer` picks a past session back up. `Supervisor` is the crash, OOM and
+token-refresh loop, plus the telemetry and audit the host reads.
+`Restorer` reloads saved state after a restart. `Background` starts the
+long-running refresh loops. `Authorizer` says yes or no before an agent
+opens a PR, pushes, opens an issue, merges, or asks for review.
+
+You get one from `agent.AsRuntime(agent.NewManager(...))`. See
+[`docs/MODULE.md`](docs/MODULE.md) for a full example.
+
+### 2. The wire API
+
+`crux serve` puts the same runtime behind HTTP+JSON under `/v1`, on a unix
+socket by default. The contract is in [`api/api.go`](api/api.go) and
+[`api/runtime.go`](api/runtime.go). [`api/wire.go`](api/wire.go) holds the
+address forms. [`api/runtime.go`](api/runtime.go) also has
+`api.RuntimeRoutes`, a table that maps every `crux.Runtime` method to its
+route. The server itself is in [`serve/`](serve/).
+
+Routes that mirror a CLI verb:
+
+| Route | Verb | What it does |
+|---|---|---|
+| `/v1/health` | GET | Server is up. Agent count, uptime, hive callback state. |
+| `/v1/agents` | GET | List agents (`crux ps`). |
+| `/v1/agents` | POST | Add a definition and start it (`crux run`). |
+| `/v1/agents/{name}` | GET | One agent's status. |
+| `/v1/agents/{name}` | DELETE | Forget an agent's definition. |
+| `/v1/agents/{name}/logs` | GET | Recent output. `?source=pane\|buffer\|full`, `?n=`, `?follow=1` streams. |
+| `/v1/agents/{name}/kick` | POST | Send work (`crux kick`). |
+| `/v1/agents/{name}/kick` | GET | State of the last async kick. |
+| `/v1/agents/{name}/stop` | POST | Stop it (`crux stop`). |
+| `/v1/events` | GET | Runtime events as a stream. |
+
+Per-agent routes for the rest of the runtime:
+
+| Route | Verb | What it does |
+|---|---|---|
+| `/v1/agents/{name}/start` | POST | Start a defined agent. |
+| `/v1/agents/{name}/restart` | POST | Restart, with an optional bootstrap prompt. |
+| `/v1/agents/{name}/pause` | POST | Pause, with a trigger, reason, actor and cause. |
+| `/v1/agents/{name}/resume` | POST | Lift a pause. |
+| `/v1/agents/{name}/restart-count` | DELETE | Reset the crash-loop counter. |
+| `/v1/agents/{name}/snapshot` | GET | Full status snapshot. |
+| `/v1/agents/{name}/kick/validate` | POST | Say why a kick would be refused, without sending one. |
+| `/v1/agents/{name}/kicklogs` | GET | List archived kick logs. |
+| `/v1/agents/{name}/kicklogs/{id}` | GET | Read one kick log. |
+| `/v1/agents/{name}/definition` | PUT | Replace the agent's config. |
+| `/v1/agents/{name}/overrides` | PUT | Set the model or backend override. |
+| `/v1/agents/{name}/pins/{cli\|model}` | PUT, DELETE | Pin or unpin the CLI version or model. |
+| `/v1/agents/{name}/login-code` | POST | Type a device-flow login code. |
+| `/v1/agents/{name}/session` | GET | Session id and resume handle. |
+| `/v1/agents/{name}/session/kick` | POST | Kick a named past session. |
+| `/v1/agents/{name}/supervision` | GET | Supervisor reads: capabilities, backend, restart and failure state, auth. |
+| `/v1/agents/{name}/tokens/refresh` | POST | Re-mint this agent's GitHub token. |
+| `/v1/agents/{name}/nudge` | POST | Send a nudge that does not count as a kick. |
+| `/v1/agents/{name}/seed` | POST | Reload saved pause, restart, kick and turn-loss state. |
+| `/v1/agents/{name}/watchdog` | GET | Watchdog observation and last production. |
+| `/v1/agents/{name}/watchdog/conditions` | PUT | Set the agent's watchdog conditions. |
+
+Fleet-wide routes:
+
+| Route | Verb | What it does |
+|---|---|---|
+| `/v1/snapshots` | GET | Snapshot of every agent. |
+| `/v1/definitions` | POST | Add a definition without starting it. |
+| `/v1/definitions/reconcile` | POST | Add any definitions the runtime does not know yet. |
+| `/v1/fleet` | GET | Trust level, shared uid, consent-wedged agents, agent counts. |
+| `/v1/fleet/breaker` | GET, PUT | Read, or restore, the fleet breaker. |
+| `/v1/fleet/breaker/engage` | POST | Pause every running agent. |
+| `/v1/fleet/breaker/release` | POST | Resume the agents the breaker paused. |
+| `/v1/fleet/acmm` | PUT | Set the fleet trust level. |
+| `/v1/fleet/modes/sync` | POST | Rewrite agent mode files for a trust level. |
+| `/v1/fleet/modes/clear` | POST | Drop mode overrides for named agents. |
+| `/v1/fleet/inference/refresh` | POST | Re-resolve routes for a gateway backend. |
+| `/v1/fleet/relaunch-bob` | POST | Relaunch Bob agents parked on a missing key. |
+| `/v1/fleet/startup-queued` | POST | Record the host's staggered boot queue. |
+| `/v1/fleet/restart-crashed` | POST | Relaunch crashed agents. |
+| `/v1/fleet/tokens/refresh` | POST | Re-mint every agent's GitHub token. |
+| `/v1/fleet/kicklogs/archive` | POST | Rotate every agent's kick log. |
+| `/v1/credentials/copilot` | GET, PUT | Read or set the shared Copilot token. |
+| `/v1/credentials/claude` | GET | Where crux looks for Claude credentials. |
+| `/v1/credentials/claude/reload` | POST | Re-read the Claude credential store. |
+| `/v1/backends/{backend}/auth` | GET | Whether a backend has credentials. |
+| `/v1/audit` | POST | Append a host action to the audit trail. |
+| `/v1/trajectory` | GET | Running agents with intent and transcript. |
+| `/v1/authorize` | POST | Ask before a PR open, push, issue open, merge or review request. |
+| `/v1/watchdog/agents` | GET | Agent names the watchdog should observe. |
+
+`api.Client` in [`api/client.go`](api/client.go) wraps the CLI-shaped
+routes: `Health`, `List`, `Get`, `Run`, `Logs`, `FollowLogs`, `Kick`,
+`Stop`, `Events`, `WaitReady`, `Status` and `Address`. `Do` reaches any
+other route. [`api/client`](api/client) goes one step further:
+`client.Runtime` is a full `crux.Runtime` over the API, and is what
+`runtime.New` returns when `CRUX_MODE=sidecar`.
+
+### 3. The hive callback, what crux asks the host for
+
+This layer runs the other way. Crux never holds a long-lived GitHub key, a
+canary list, or any other secret the host owns. It asks the host for each
+one when it needs it. The contract is in
+[`api/callback/callback.go`](api/callback/callback.go). The host serves
+it; crux calls it with `crux serve --hive-callback`. The core set is
+`callback.Capabilities`. The rest are optional halves the host may add.
+Every call fails closed: if the host is down or says no, crux treats it as
+a refusal.
+
+| Method | What the host provides |
+|---|---|
+| `MintToken` | A short-lived, scoped GitHub token. |
+| `MintAgentToken` | A token for one agent at its trust tier. |
+| `BobCredential` | The IBM Bob API key and where it came from. |
+| `LinearCredential` | The Linear credential to inject. |
+| `CreatePR` | Opens a pull request as the host's GitHub App. |
+| `RecordREST` | Records one relayed GitHub REST response for accounting. |
+| `RateLimit` | The shared GitHub rate-limit bucket snapshot. |
+| `RecordUsage` | Records inference token usage. |
+| `ScanCanary` | Scans a GitHub write body for planted canaries. |
+| `ScanText` | Scans tool payload text. |
+| `ReportCondition` | Takes a runtime condition, raised or cleared. |
+| `Policy` | One snapshot of the host's policy settings. |
+| `RepoAutoMergeEnabled` | Whether one repository allows auto-merge. |
+| `SetInferenceRoute` | Tells the host's inference proxy which upstream to use for one agent. |
+| `ClearInferenceRoute` | Removes that route. |
+| `BeginEffect` | Admits or denies one external write before crux performs it. |
+| `EndEffect` | Records how that write turned out. |
+| `Configured` | Says whether the host has a given capability at all. |
+
+### Packages shipped with it
+
+- `agent`: the manager. tmux sessions, launch, restarts, kicks. It knows
+  nine engines by name in `agent/manager_launch.go`: claude, copilot,
+  gemini, agy, pi, goose, bob, codex and omp. `config.CLIBackends` lists
+  fifteen; the other six (aider, opencode, kilo, muse, openhands,
+  omnigent) launch as a bare binary.
+- `proxy`: the GitHub and inference proxy. Policy enforcement at the tool
+  boundary: every agent write to GitHub and every model call goes through
+  it, with budgets and deny rules.
+- `sandbox`: the opt-in per-task rootless Podman container, with no
+  credentials inside.
+- `kubejob`: the same sandbox as a Kubernetes Job.
+- `toolapprove`: the allow list of what an agent may call. It sorts tool
+  calls into read-only, GitHub write, PR open and PR merge, and scans
+  their text.
+- `skillreg`: a local registry of named, versioned agent skills.
+- `inference`: works out where an agent's model calls go and how they log
+  in.
+- `openrouter`: the OpenRouter scan-to-fund flow that gets a scoped key.
+- `watsonx`: swaps an IBM Cloud API key for a short-lived IAM token.
+- `watchdog`: the per-agent liveness and readiness loop that heals stalls.
+- `trajectory`: a second-model check that an agent is still on task.
+- `logscrub`: a log handler that masks tokens and other secrets.
+- `pushbroker`: the trusted step that pushes a sandboxed agent's work with
+  credentials the sandbox never sees.
+- `gitidentity`: the git identity each agent commits as.
+- `agentmode`: the ladder of GitHub permission tiers, one per trust level.
+- `agentparse`: parsers for the tables and lists agents print.
+- `agentsmd`: reads a repository's `AGENTS.md` and its inline skills.
+- `hivecap`: the runtime-side adapters for the hive callback.
+- `serve`, `cli`, `cmd`: the HTTP server, the `crux` command, and the binary.
+
 ## Contributing
 
 The Go code in this repository is not edited here. It is a copy of
