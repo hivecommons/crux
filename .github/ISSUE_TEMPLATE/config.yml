@@ -1,0 +1,14 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a bug or request a feature in Crux's code
+    url: https://github.com/hivecommons/hive/issues/new/choose
+    about: The Go code here is a synced copy of src/crux in hivecommons/hive. File code issues there. Use a blank issue here only for this repo's CI, release or README.
+  - name: Report a security vulnerability
+    url: https://github.com/hivecommons/hive/blob/v5/SECURITY.md
+    about: Please do not file vulnerabilities as public issues. Crux's code is covered by Hive's SECURITY.md; follow it instead.
+  - name: Join our Discord
+    url: https://hivecommons.dev/discord
+    about: Ask setup, contributor, and community questions in the Hive Commons Discord.
+  - name: Propose a project to join Hive Commons
+    url: https://github.com/hivecommons/.github/issues/new?template=join-hive-commons.yml
+    about: Project proposals for the Hive Commons family are handled in the hivecommons/.github repository.
