@@ -143,6 +143,10 @@ refuses to start without a token. Set `CRUX_TOKEN` instead of passing
 [`crux serve`](https://github.com/hivecommons/hive/blob/v5/src/docs/crux-serve.md)
 page; the Go client lives in `github.com/hivecommons/crux/api`.
 
+When a running service misbehaves (`/v1/health` fails, an agent is stuck,
+a release has to be withdrawn), start from the
+[runbooks index](runbooks/README.md).
+
 ## How it fits with Hive
 
 Hive is a system that runs a whole team of agents against a set of
