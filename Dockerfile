@@ -13,7 +13,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/crux ./cmd/crux
 
-FROM alpine:3.22
+FROM alpine:3.24
 RUN apk add --no-cache tmux ca-certificates git openssh-client bash \
  && adduser -D -u 1000 crux
 COPY --from=build /out/crux /usr/local/bin/crux

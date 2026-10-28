@@ -1,7 +1,7 @@
 # Used only by goreleaser (.goreleaser.yaml), which copies in the binary it
 # already cross-compiled for the target platform. Keep the runtime layer in
 # step with Dockerfile.
-FROM alpine:3.22
+FROM alpine:3.24
 RUN apk add --no-cache tmux ca-certificates git openssh-client bash \
  && adduser -D -u 1000 crux
 COPY crux /usr/local/bin/crux
