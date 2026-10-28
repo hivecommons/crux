@@ -1,0 +1,21 @@
+# Only the scaffolding is maintained in this repository (see README
+# "Contributing"): go.mod/go.sum are synced from hivecommons/hive src/crux and
+# the Sync guard rejects PRs that touch them, so the gomod ecosystem is
+# deliberately absent here.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+  - package-ecosystem: docker
+    directories:
+      - /
+    schedule:
+      interval: weekly
+    groups:
+      docker-bases:
+        patterns: ["*"]
