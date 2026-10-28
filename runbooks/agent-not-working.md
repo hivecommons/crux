@@ -41,7 +41,11 @@ crux --server "$CRUX_SERVER" ps
 crux --server "$CRUX_SERVER" logs NAME
 ```
 
-The watchdog classifies each agent pane. `unknown` is "cannot tell yet": it
+The watchdog classifies each agent pane. `crux ps` does not print the pane
+class; it shows state, paused, restart count, busy condition and start
+failure class. Read the class from the server log line
+`watchdog: liveness transition` (`agent`, `from`, `to`, `reason`) or from the
+published watchdog condition events. `unknown` is "cannot tell yet": it
 never restarts and never reports healthy.
 
 | Pane class | Meaning | Action |
@@ -71,7 +75,8 @@ attributed to the fleet breaker is released only by releasing the breaker.
 ## 5. Verify recovery
 
 - `/v1/health` answers and `uptime_seconds` grows across two checks.
-- `crux ps` shows the agent running, not paused, and its pane `ready`.
+- `crux ps` shows the agent running and not paused, and the latest
+  `watchdog: liveness transition` log line for it has `to=ready`.
 - With a hive callback, `hive_callback.reachable` is true.
 
 If users were affected, write the postmortem with
