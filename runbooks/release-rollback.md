@@ -100,5 +100,5 @@ PR as the fix.
 - `gh release list --repo hivecommons/crux --limit 3` shows the good release
   as Latest.
 
-Then write the postmortem: what shipped, why the smoke test missed it, and
-what now catches it.
+Then write the postmortem using `runbooks/postmortem-template.md`: what
+shipped, why the smoke test missed it, and what now catches it.
