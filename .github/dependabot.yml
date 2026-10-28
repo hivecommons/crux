@@ -2,6 +2,11 @@
 # "Contributing"): go.mod/go.sum are synced from hivecommons/hive src/crux and
 # the Sync guard rejects PRs that touch them, so the gomod ecosystem is
 # deliberately absent here.
+#
+# The docker ecosystem covers the literal FROM images only: alpine in
+# Dockerfile and Dockerfile.goreleaser. The golang build base is referenced
+# through ARG GO_IMAGE in Dockerfile, which Dependabot does not parse, so it is
+# NOT kept current by this config and still needs a manual bump.
 version: 2
 updates:
   - package-ecosystem: github-actions
