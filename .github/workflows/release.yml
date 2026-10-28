@@ -39,6 +39,7 @@ jobs:
           set -euo pipefail
           tag="$(git describe --tags --exact-match HEAD)"
           [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-+].+)?$ ]] || { echo "::error::HEAD tag '$tag' is not vX.Y.Z" >&2; exit 1; }
+          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
           test -f cmd/crux/main.go || { echo "::error::cmd/crux is not in this tree; nothing to release" >&2; exit 1; }
           echo "Releasing $tag from $(grep '^hive_sha=' .hive-sync || echo 'unknown hive sha')"
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -69,10 +70,10 @@ jobs:
       - name: Summary
         run: |
           {
-            echo "## crux ${GITHUB_REF_NAME}"
+            echo "## crux ${RELEASE_TAG}"
             echo
-            echo "- Release: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME}"
-            echo "- Image: \`ghcr.io/hivecommons/crux:${GITHUB_REF_NAME#v}\`"
-            echo "- \`go install github.com/hivecommons/crux/cmd/crux@${GITHUB_REF_NAME}\`"
+            echo "- Release: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${RELEASE_TAG}"
+            echo "- Image: \`ghcr.io/hivecommons/crux:${RELEASE_TAG#v}\`"
+            echo "- \`go install github.com/hivecommons/crux/cmd/crux@${RELEASE_TAG}\`"
             echo "- Hive source: $(grep '^source=' .hive-sync | cut -d= -f2-)"
           } >> "$GITHUB_STEP_SUMMARY"
