@@ -70,6 +70,18 @@ tar xzf crux_0.1.0_linux_amd64.tar.gz
 ./crux --version
 ```
 
+That archive example is for Linux on amd64. On macOS choose `darwin_arm64`
+for Apple Silicon or `darwin_amd64` for Intel from the same release. Keep the
+signature-verification command unchanged. macOS includes `shasum`, so verify
+the selected archive against its signed checksum before extracting it:
+
+```sh
+# Apple Silicon example; use darwin_amd64 in both places on Intel
+grep 'crux_0.1.0_darwin_arm64.tar.gz$' checksums.txt | shasum -a 256 -c -
+tar xzf crux_0.1.0_darwin_arm64.tar.gz
+./crux --version
+```
+
 The container image is signed the same way:
 
 ```sh
@@ -115,6 +127,12 @@ crux kick scout "look at issue 42"  # send it work
 crux stop scout                     # stop it
 ```
 
+While `crux run` is still active, `crux ps` should list `scout`; `crux logs
+scout -n 50` should show the agent's startup or prompt. Output varies by
+backend. If startup fails, check `command -v tmux` and `command -v copilot`,
+then run and authenticate the agent CLI directly before retrying. Do not send
+the example issue task until you have a repository and task you intend it to work on.
+
 Agent files live under `--workdir` (default `$HIVE_WORK_DIR`, then
 `$HOME/.crux`). While `crux run` is in the foreground it opens a small
 control socket in that folder, and `ps`, `logs`, `kick` and `stop` use it
@@ -124,6 +142,11 @@ to reach the live agent.
 
 `crux serve` keeps the runtime up and exposes it over HTTP+JSON, so other
 programs (or you, from another shell) can drive it:
+
+The example assumes `/run/crux` already exists and is writable by the service
+user; it is not normally writable by an ordinary macOS or Linux user.
+For a local trial, use a socket path in a private directory you own instead
+and set `CRUX_SERVER` to that same path. Do not make a shared socket world-writable.
 
 ```sh
 # Serve on a unix socket. A unix socket is a file on disk that two
@@ -203,6 +226,14 @@ The design record is
 [`src/docs/design/crux.md`](https://github.com/hivecommons/hive/blob/v5/src/docs/design/crux.md).
 
 ## What crux exposes
+
+**Go integrator reference starts here.** If you only want to operate agents,
+the [commands](#commands), [service setup](#run-it-as-a-service), and
+[runbooks](runbooks/README.md) are enough. The remaining interfaces and routes
+are for programs embedding or calling Crux.
+
+<details>
+<summary>Advanced: Go interfaces, HTTP routes, host callbacks, and packages</summary>
 
 Crux has three layers you can build on. Each one is a Go package in this
 repository. The first is the Go interface. The second is the same thing
@@ -391,6 +422,8 @@ a refusal.
 - `agentsmd`: reads a repository's `AGENTS.md` and its inline skills.
 - `hivecap`: the runtime-side adapters for the hive callback.
 - `serve`, `cli`, `cmd`: the HTTP server, the `crux` command, and the binary.
+
+</details>
 
 ## Contributing
 
