@@ -15,12 +15,11 @@
 # merges: PR checks run against the merge ref at push time, not at merge time,
 # so syncs that land in between can push files past a baseline captured
 # earlier and turn main red (crux#22 did exactly that).
-1689 agent/manager.go
+1658 agent/manager.go
 1010 agent/manager_homes.go
 1389 agent/manager_kick.go
 1218 agent/manager_launch.go
 920 agent/manager_pane_signals.go
-857 agent/manager_restart.go
 975 agent/manager_tokens.go
 815 agent/permissions_watcher.go
 953 api/client/client.go
