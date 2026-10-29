@@ -29,9 +29,10 @@ jobs:
           set -euo pipefail
           # The sync pushes straight to main (no PR), so any PR here is by
           # definition not the sync. Keep an allowlist anyway for a future
-          # PR-based sync actor.
+          # PR-based sync actor. Quote the patterns: unquoted, [bot] is a
+          # bracket expression that matches one of b/o/t, not the literal.
           case "$ACTOR" in
-            hive-release[bot]|hivecommons-hive[bot]) echo "sync actor $ACTOR; skipping"; exit 0 ;;
+            "hive-release[bot]"|"hivecommons-hive[bot]") echo "sync actor $ACTOR; skipping"; exit 0 ;;
           esac
           files="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --paginate --jq '.[].filename')"
           go_files="$(printf '%s\n' "$files" | grep -E '(\.go|^go\.mod|^go\.sum|^\.hive-sync)$' || true)"
@@ -57,7 +58,7 @@ jobs:
           if [ -n "$existing" ]; then
             gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -f body="$body" >/dev/null
           else
-            gh pr comment "$PR" --body "$body"
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "$body"
           fi
           echo "::error::PR touches sync-owned files ($(printf '%s' "$go_files" | tr '\n' ' ')). Source of truth is hivecommons/hive src/crux."
           exit 1
