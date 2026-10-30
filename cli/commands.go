@@ -35,10 +35,12 @@ func parseSub(fs *flag.FlagSet, args []string) (code int, ok bool) {
 	return ExitOK, true
 }
 
-// flagsFirst moves flags (and their values) ahead of positional arguments so
-// `crux logs scout -n 50` parses like `crux logs -n 50 scout`; the flag
-// package otherwise stops at the first positional. Everything after "--" stays
-// positional.
+// flagsFirst moves flags registered on fs (and their values) ahead of
+// positional arguments so `crux logs scout -n 50` parses like
+// `crux logs -n 50 scout`; the flag package otherwise stops at the first
+// positional. Dash-prefixed tokens fs does not define stay where they are, so
+// free-text tails such as a kick message keep their words, and everything
+// after "--" stays positional.
 func flagsFirst(fs *flag.FlagSet, args []string) []string {
 	var flags, pos []string
 	for i := 0; i < len(args); i++ {
@@ -51,13 +53,18 @@ func flagsFirst(fs *flag.FlagSet, args []string) []string {
 			pos = append(pos, a)
 			continue
 		}
-		flags = append(flags, a)
 		name := strings.TrimLeft(a, "-")
-		if strings.Contains(name, "=") {
-			continue
+		hasValue := strings.Contains(name, "=")
+		if hasValue {
+			name = name[:strings.Index(name, "=")]
 		}
 		f := fs.Lookup(name)
 		if f == nil {
+			pos = append(pos, a)
+			continue
+		}
+		flags = append(flags, a)
+		if hasValue {
 			continue
 		}
 		if b, isBool := f.Value.(interface{ IsBoolFlag() bool }); isBool && b.IsBoolFlag() {

@@ -543,6 +543,19 @@ func TestLogsFlagsAfterAgent(t *testing.T) {
 	}
 }
 
+// Dash-prefixed words after the agent name are part of a kick message, not
+// flags; the flagsFirst reorder must leave them alone.
+func TestKickKeepsDashWordsInMessage(t *testing.T) {
+	h := newHarness(t)
+	h.rt.procs["scout"] = &crux.Process{Name: "scout", ID: "sc"}
+	if code := h.run("--local", "kick", "scout", "run", "-v", "--fast", "-n=1"); code != ExitOK {
+		t.Fatalf("code %d stderr %q", code, h.stderr)
+	}
+	if kicks := h.rt.Kicks(); len(kicks) != 1 || kicks[0] != "run -v --fast -n=1" {
+		t.Fatalf("kicks = %v", kicks)
+	}
+}
+
 func TestLogsPaneBufferFullAndJSON(t *testing.T) {
 	h := newHarness(t)
 	h.rt.procs["scout"] = &crux.Process{Name: "scout", ID: "sc"}
