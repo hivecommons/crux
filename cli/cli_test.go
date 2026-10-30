@@ -597,6 +597,12 @@ func TestLogsPaneBufferFullAndJSON(t *testing.T) {
 	if code := h.run("--local", "logs", "--buffer", "--full", "scout"); code != ExitUsage {
 		t.Fatalf("exclusive flags: code %d", code)
 	}
+	if code := h.run("--local", "logs", "-n", "-5", "scout"); code != ExitUsage {
+		t.Fatalf("negative -n: code %d", code)
+	}
+	if code := h.run("--local", "logs", "--buffer", "-n", "-5", "scout"); code != ExitUsage {
+		t.Fatalf("negative -n with -buffer: code %d", code)
+	}
 	if code := h.run("--local", "logs", "--bogus"); code != ExitUsage {
 		t.Fatalf("bad flag: code %d", code)
 	}

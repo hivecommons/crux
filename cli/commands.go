@@ -316,6 +316,10 @@ func (e *Env) cmdLogs(rt crux.Runtime, args []string) int {
 		fmt.Fprintln(e.Stderr, "crux: -buffer and -full are exclusive")
 		return ExitUsage
 	}
+	if *lines < 0 {
+		fmt.Fprintln(e.Stderr, "crux: -n must be >= 0")
+		return ExitUsage
+	}
 	name := rt.ResolveAgent(fs.Arg(0))
 	out := logsOutput{Agent: name}
 	var err error

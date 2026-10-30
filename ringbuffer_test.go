@@ -114,3 +114,15 @@ func TestRingBuffer_LargeDataSet(t *testing.T) {
 		t.Errorf("last item: got %q, want %q", got[cap-1], expectedLast)
 	}
 }
+
+func TestRingBuffer_LastNonPositive(t *testing.T) {
+	rb := NewRingBuffer(10)
+	rb.Write("a")
+	rb.Write("b")
+
+	for _, n := range []int{0, -1, -100} {
+		if got := rb.Last(n); got != nil {
+			t.Errorf("Last(%d) = %v, want nil", n, got)
+		}
+	}
+}
