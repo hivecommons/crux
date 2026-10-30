@@ -525,6 +525,24 @@ func TestPSTableAndJSONFromConfig(t *testing.T) {
 	}
 }
 
+func TestLogsFlagsAfterAgent(t *testing.T) {
+	for _, args := range [][]string{
+		{"logs", "scout", "-n", "50"},
+		{"logs", "-n", "50", "scout"},
+		{"logs", "scout", "-n=50"},
+	} {
+		h := newHarness(t)
+		h.rt.procs["scout"] = &crux.Process{Name: "scout", ID: "sc"}
+		h.rt.pane["scout"] = []string{"p1"}
+		if code := h.run(append([]string{"--local"}, args...)...); code != ExitOK {
+			t.Fatalf("%v: code %d err %q", args, code, h.stderr)
+		}
+		if calls := h.rt.Calls(); calls[len(calls)-1] != "GetOutput(scout,50)" {
+			t.Fatalf("%v: calls = %v", args, calls)
+		}
+	}
+}
+
 func TestLogsPaneBufferFullAndJSON(t *testing.T) {
 	h := newHarness(t)
 	h.rt.procs["scout"] = &crux.Process{Name: "scout", ID: "sc"}
