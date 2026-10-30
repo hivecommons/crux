@@ -122,7 +122,7 @@ From a second terminal, while it is running:
 
 ```sh
 crux ps                             # what is running
-crux logs scout -n 50               # the last 50 lines of its screen
+crux logs -n 50 scout               # the last 50 lines of its screen
 crux kick scout "look at issue 42"  # send it work
 crux stop scout                     # stop it
 ```
@@ -197,7 +197,8 @@ lists the controls, which ones belong to Crux, and what is still missing.
 
 Global flags: `--workdir`, `--defs` (same as `--config`), `--socket`,
 `--local`, `--server`, `--token`. Environment variables that stand in for
-them: `CRUX_DEFS`, `CRUX_SOCKET`, `CRUX_SERVER`, `CRUX_TOKEN`.
+them: `CRUX_DEFS`, `CRUX_SERVER`, `CRUX_TOKEN`. (`CRUX_SOCKET` is not used for
+the global `--socket`; it sets the listening socket for `crux serve --socket`.)
 
 ## Status
 
