@@ -795,7 +795,7 @@ func TestStreamByOffsetRepeatedLines(t *testing.T) {
 }
 
 func TestStreamByOffsetBurst(t *testing.T) {
-	buf := crux.NewRingBuffer(500)
+	buf := crux.NewRingBuffer(1000)
 	rt := &seqRuntime{buf: buf}
 	got := streamOutput(t, rt,
 		func() { buf.Write("first") },
