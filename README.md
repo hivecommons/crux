@@ -434,7 +434,8 @@ hivecommons/hive, pushed by Hive's
 [`crux-sync`](https://github.com/hivecommons/hive/blob/v5/.github/workflows/crux-sync.yml)
 workflow on every change. `.hive-sync` names the exact Hive commit this
 tree came from, and a `Sync guard` check rejects pull requests here that
-touch Go files. Only the scaffolding is maintained in this repository:
+touch Go files, `go.mod`, `go.sum`, `.hive-sync`, `Makefile` or
+`docs/MODULE.md`. Only the scaffolding is maintained in this repository:
 `.github/`, `.goreleaser.yaml`, `Dockerfile`, this README and `LICENSE`.
 The module's own README is synced to [`docs/MODULE.md`](docs/MODULE.md).
 

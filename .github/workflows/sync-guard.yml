@@ -1,8 +1,8 @@
 name: Sync guard
 
-# The Go code in this repository is produced by hivecommons/hive's
-# crux-sync workflow from src/crux there. A pull request here that edits Go
-# code would be overwritten by the next sync, so it is refused with a pointer
+# The Go code, module files, Makefile and docs/MODULE.md in this repository
+# are produced by hivecommons/hive's crux-sync workflow from src/crux there.
+# Edits here would be overwritten by the next sync, so they are refused with a pointer
 # to the source of truth. Scaffolding (.github/, .goreleaser.yaml, Dockerfile,
 # README.md, LICENSE) is maintained here and passes.
 
@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Refuse Go edits from non-sync actors
+      - name: Refuse sync-owned edits from non-sync actors
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
@@ -35,18 +35,18 @@ jobs:
             "hive-release[bot]"|"hivecommons-hive[bot]") echo "sync actor $ACTOR; skipping"; exit 0 ;;
           esac
           files="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --paginate --jq '.[].filename')"
-          go_files="$(printf '%s\n' "$files" | grep -E '(\.go|^go\.mod|^go\.sum|^\.hive-sync)$' || true)"
-          if [ -z "$go_files" ]; then
-            echo "No Go/module files touched; scaffolding-only change is fine here."
+          sync_files="$(printf '%s\n' "$files" | grep -E '(\.go|^go\.mod|^go\.sum|^\.hive-sync|^Makefile|^docs/MODULE\.md)$' || true)"
+          if [ -z "$sync_files" ]; then
+            echo "No sync-owned files touched; scaffolding-only change is fine here."
             exit 0
           fi
           marker="<!-- crux-sync-guard -->"
           # shellcheck disable=SC2016
-          list="$(printf '%s\n' "$go_files" | sed 's/^/- `/; s/$/`/')"
+          list="$(printf '%s\n' "$sync_files" | sed 's/^/- `/; s/$/`/')"
           body="$marker
           ### This repository is a synced copy
 
-          The Go code here is generated from [\`hivecommons/hive\` \`src/crux\`](https://github.com/hivecommons/hive/tree/v5/src/crux) by hive's \`crux-sync\` workflow and would be overwritten by the next sync. Please open this change as a pull request against **hivecommons/hive** (base \`v5\`, under \`src/crux/\`); it will be published here automatically once it merges.
+          The Go code, module files, \`Makefile\` and \`docs/MODULE.md\` here are generated from [\`hivecommons/hive\` \`src/crux\`](https://github.com/hivecommons/hive/tree/v5/src/crux) by hive's \`crux-sync\` workflow and would be overwritten by the next sync. Please open this change as a pull request against **hivecommons/hive** (base \`v5\`, under \`src/crux/\`); it will be published here automatically once it merges.
 
           Files this PR touches that are owned by the sync:
           $list
@@ -60,5 +60,5 @@ jobs:
           else
             gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "$body"
           fi
-          echo "::error::PR touches sync-owned files ($(printf '%s' "$go_files" | tr '\n' ' ')). Source of truth is hivecommons/hive src/crux."
+          echo "::error::PR touches sync-owned files ($(printf '%s' "$sync_files" | tr '\n' ' ')). Source of truth is hivecommons/hive src/crux."
           exit 1
