@@ -47,7 +47,7 @@ brew install hivecommons/hive/crux
 go install github.com/hivecommons/crux/cmd/crux@latest
 
 # Container image (amd64 and arm64; tmux is already inside)
-docker run --rm ghcr.io/hivecommons/crux:0.1.0 --help
+docker run --rm ghcr.io/hivecommons/crux:0.2.0 --help
 ```
 
 Or download a release archive from the
@@ -60,13 +60,13 @@ flags below are required: cosign refuses to run without them, and a
 wildcard would accept a signature from anyone. To check:
 
 ```sh
-# from the v0.1.0 release page, download these three files first
+# from the v0.2.0 release page, download these three files first
 cosign verify-blob checksums.txt \
   --bundle checksums.txt.sigstore.json \
   --certificate-identity-regexp '^https://github\.com/hivecommons/crux/\.github/workflows/release\.yml@' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 sha256sum -c checksums.txt --ignore-missing
-tar xzf crux_0.1.0_linux_amd64.tar.gz
+tar xzf crux_0.2.0_linux_amd64.tar.gz
 ./crux --version
 ```
 
@@ -77,15 +77,15 @@ the selected archive against its signed checksum before extracting it:
 
 ```sh
 # Apple Silicon example; use darwin_amd64 in both places on Intel
-grep 'crux_0.1.0_darwin_arm64.tar.gz$' checksums.txt | shasum -a 256 -c -
-tar xzf crux_0.1.0_darwin_arm64.tar.gz
+grep 'crux_0.2.0_darwin_arm64.tar.gz$' checksums.txt | shasum -a 256 -c -
+tar xzf crux_0.2.0_darwin_arm64.tar.gz
 ./crux --version
 ```
 
 The container image is signed the same way:
 
 ```sh
-cosign verify ghcr.io/hivecommons/crux:0.1.0 \
+cosign verify ghcr.io/hivecommons/crux:0.2.0 \
   --certificate-identity-regexp '^https://github\.com/hivecommons/crux/\.github/workflows/release\.yml@' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
@@ -202,7 +202,7 @@ the global `--socket`; it sets the listening socket for `crux serve --socket`.)
 
 ## Status
 
-Current release: v0.1.0. This is early software.
+Current release: v0.2.0. This is early software.
 
 What works today: the `crux` CLI (`run`, `ps`, `logs`, `kick`, `stop`),
 `crux serve` with its HTTP+JSON API and Go client, remote mode with
