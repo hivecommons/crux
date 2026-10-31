@@ -1,6 +1,7 @@
 name: Sync guard
 
-# The Go code, module files, Makefile and docs/MODULE.md in this repository
+# Everything in this repository except the KEEP paths of crux-publish.sh
+# (Go code, module files, Makefile, scripts, testdata, docs, ...)
 # are produced by hivecommons/hive's crux-sync workflow from src/crux there.
 # Edits here would be overwritten by the next sync, so they are refused with a pointer
 # to the source of truth. Scaffolding (.github/, .goreleaser.yaml, Dockerfile,
@@ -35,7 +36,9 @@ jobs:
             "hive-release[bot]"|"hivecommons-hive[bot]") echo "sync actor $ACTOR; skipping"; exit 0 ;;
           esac
           files="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --paginate --jq '.[].filename')"
-          sync_files="$(printf '%s\n' "$files" | grep -E '(\.go|^go\.mod|^go\.sum|^\.hive-sync|^Makefile|^docs/MODULE\.md)$' || true)"
+          # Allowlist mirroring KEEP in hive's src/scripts/crux-publish.sh: anything
+          # else is deleted and re-copied on publish, so it is sync-owned.
+          sync_files="$(printf '%s\n' "$files" | grep -vE '^(\.github/|runbooks/|\.goreleaser\.yaml$|Dockerfile$|Dockerfile\.goreleaser$|LICENSE$|README\.md$|\.gitignore$|\.golangci\.yml$|\.dockerignore$)' || true)"
           if [ -z "$sync_files" ]; then
             echo "No sync-owned files touched; scaffolding-only change is fine here."
             exit 0
