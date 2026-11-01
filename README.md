@@ -128,7 +128,7 @@ crux stop scout                     # stop it
 ```
 
 While `crux run` is still active, `crux ps` should list `scout`; `crux logs
-scout -n 50` should show the agent's startup or prompt. Output varies by
+-n 50 scout` should show the agent's startup or prompt. Output varies by
 backend. If startup fails, check `command -v tmux` and `command -v copilot`,
 then run and authenticate the agent CLI directly before retrying. Do not send
 the example issue task until you have a repository and task you intend it to work on.
