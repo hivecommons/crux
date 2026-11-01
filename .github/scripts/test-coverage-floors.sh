@@ -7,8 +7,9 @@
 #
 # The gate's job is to fail closed. In CI it only ever sees green logs, so
 # every failure branch (below floor, FAIL, no test files, Go >= 1.20 zero-
-# coverage form, NOT MEASURED, ok-without-figure, worst-of-duplicates) would
-# otherwise run for the first time on the day it matters. This test runs them
+# coverage form, NOT MEASURED, ok-without-figure, worst-of-duplicates, and the
+# UNTESTED_CMD_MAINS exemption) would otherwise run for the first time on the
+# day it matters. This test runs them
 # on every change to the script.
 #
 # Usage: bash .github/scripts/test-coverage-floors.sh   (from the module root)
@@ -140,6 +141,28 @@ echo "case: a package with no test files (Go >= 1.20 coverage: 0.0% form)"
 run_gate go120 -- "$TMP/go120.log"
 assert_exit 1 "$RC" "tab-led 0.0% line is treated as no test files"
 assert_contains "$OUT" "crux/pushbroker: NO TEST FILES" "reports NO TEST FILES for the 0.0% form"
+
+echo "case: a thin main listed in UNTESTED_CMD_MAINS is exempt from NO TEST FILES"
+# The list is empty in the shipped script, so this branch never runs in CI.
+# Exercise it on a scratch copy with cmd/crux listed: the exempt package
+# passes and is labelled as such, while an unlisted test-less package still
+# fails, so the exemption cannot widen into a blanket pass.
+EXEMPT_SCRIPT="$TMP/coverage-floors-exempt.sh"
+sed "s|^UNTESTED_CMD_MAINS=''$|UNTESTED_CMD_MAINS='cmd/crux'|" "$SCRIPT" >"$EXEMPT_SCRIPT"
+if grep -qx "UNTESTED_CMD_MAINS='cmd/crux'" "$EXEMPT_SCRIPT"; then pass "scratch copy lists cmd/crux as an exempt main"; else bad "could not patch UNTESTED_CMD_MAINS in the scratch copy"; fi
+{ green_without github.com/hivecommons/crux/cmd/crux; printf '?   \tgithub.com/hivecommons/crux/cmd/crux\t[no test files]\n'; } >"$TMP/exempt.log"
+(cd "$MODULE" && env -u GITHUB_STEP_SUMMARY PATH="$BIN:$PATH" bash "$EXEMPT_SCRIPT" "$TMP/exempt.log") >"$TMP/exempt.out" 2>&1
+RC=$?; OUT="$(cat "$TMP/exempt.out")"
+assert_exit 0 "$RC" "an exempt thin main with no tests passes"
+assert_contains "$OUT" "cmd/crux: no tests (exempt thin main)" "reports the exemption, not NO TEST FILES"
+assert_not_contains "$OUT" "COVERAGE GATE FAILED" "no failure banner for the exempt main"
+{ green_without github.com/hivecommons/crux/cmd/crux; printf '?   \tgithub.com/hivecommons/crux/cmd/crux\t[no test files]\n'; } | grep -v "$(printf '\t%s\t' github.com/hivecommons/crux/pushbroker)" >"$TMP/exempt-other.log"
+printf '?   \tgithub.com/hivecommons/crux/pushbroker\t[no test files]\n' >>"$TMP/exempt-other.log"
+(cd "$MODULE" && env -u GITHUB_STEP_SUMMARY PATH="$BIN:$PATH" bash "$EXEMPT_SCRIPT" "$TMP/exempt-other.log") >"$TMP/exempt-other.out" 2>&1
+RC=$?; OUT="$(cat "$TMP/exempt-other.out")"
+assert_exit 1 "$RC" "an unlisted test-less package still fails alongside the exempt main"
+assert_contains "$OUT" "crux/pushbroker: NO TEST FILES" "the unlisted package is reported NO TEST FILES"
+assert_contains "$OUT" "cmd/crux: no tests (exempt thin main)" "the exempt main stays exempt in the same run"
 
 echo "case: a listed package that no log mentions"
 green_without github.com/hivecommons/crux/pushbroker >"$TMP/missing.log"
