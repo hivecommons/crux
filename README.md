@@ -436,7 +436,9 @@ workflow on every change. `.hive-sync` names the exact Hive commit this
 tree came from, and a `Sync guard` check rejects pull requests here that
 touch Go files, `go.mod`, `go.sum`, `.hive-sync`, `Makefile` or
 `docs/MODULE.md`. Only the scaffolding is maintained in this repository:
-`.github/`, `.goreleaser.yaml`, `Dockerfile`, this README and `LICENSE`.
+`.github/`, `.goreleaser.yaml`, `Dockerfile`, `Dockerfile.goreleaser`,
+`runbooks/`, `.golangci.yml`, `.gitignore`, `.dockerignore`, this README
+and `LICENSE` (the `KEEP` list in Hive's `src/scripts/crux-publish.sh`).
 The module's own README is synced to [`docs/MODULE.md`](docs/MODULE.md).
 
 CI here applies the same gates Hive applies to this code: build, vet,
