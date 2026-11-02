@@ -247,9 +247,6 @@ jobs:
         run: go build -trimpath -ldflags "-X main.version=ci-${GITHUB_SHA::12}" -o crux ./cmd/crux
       - name: Version
         run: ./crux --version
-      - name: Install tmux
-        if: runner.os == 'Linux'
-        run: sudo apt-get update -q && sudo apt-get install -y -q tmux
       - name: Smoke (synced scripts/smoke.sh, same as hive's make smoke)
         run: CRUX_BIN="$PWD/crux" scripts/smoke.sh
 
