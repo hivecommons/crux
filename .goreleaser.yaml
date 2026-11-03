@@ -8,7 +8,7 @@ project_name: crux
 
 before:
   hooks:
-    - go mod download
+    - sh -c 'for i in 1 2 3; do go mod download && break; [ "$i" -eq 3 ] && exit 1; sleep 5; done'
 
 builds:
   - id: crux
