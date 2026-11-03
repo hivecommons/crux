@@ -271,3 +271,32 @@ jobs:
         with:
           version: "~> v2"
           args: release --snapshot --clean --skip=publish,docker,sign,sbom
+
+  docker-build:
+    # `docker build .` from a checkout can break unnoticed: goreleaser-check
+    # runs with --skip=docker and release.yml only fires on tags. Build both
+    # Dockerfiles for the host platform, no push, and prove the image runs.
+    name: docker build (Dockerfile + Dockerfile.goreleaser)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build Dockerfile (builder stage compiles from the checkout)
+        run: |
+          set -euo pipefail
+          docker build --build-arg "VERSION=ci-${GITHUB_SHA::12}" -t crux:ci-checkout .
+          docker run --rm crux:ci-checkout --version
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Build Dockerfile.goreleaser (runtime layer over a prebuilt binary)
+        # Built after the checkout image so ./crux is not swept into that
+        # build's context.
+        run: |
+          set -euo pipefail
+          CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=ci-${GITHUB_SHA::12}" -o crux ./cmd/crux
+          docker build -f Dockerfile.goreleaser -t crux:ci-release .
+          docker run --rm crux:ci-release --version
+          rm -f crux
