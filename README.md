@@ -453,6 +453,9 @@ So: file issues and code changes in
 by tagging Hive `crux/vX.Y.Z`. How the publish works is in
 [`src/docs/crux-publish.md`](https://github.com/hivecommons/hive/blob/v5/src/docs/crux-publish.md).
 
+Questions? Join the [Hive Commons Discord](https://hivecommons.dev/discord).
+Want to see the hive at work? [Watch the hive live on Twitch](https://www.twitch.tv/hivecommons).
+
 ## Licence
 
 Apache-2.0. Open source under Hive Commons.
