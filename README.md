@@ -193,6 +193,7 @@ lists the controls, which ones belong to Crux, and what is still missing.
 | `crux stop <agent>` | Stop an agent. |
 | `crux serve` | Serve the runtime over HTTP+JSON. `--socket`, `--listen`, `--token`, `--hive-callback`. |
 | `crux agy-turn` | Internal. The runtime types this into a pane itself; do not run it by hand. |
+| `crux cline-turn` | Internal. One bounded Cline CLI turn run by the runtime for `backend: cline`; do not run it by hand. |
 | `crux --version` | Print the version. |
 
 Global flags: `--workdir`, `--defs` (same as `--config`), `--socket`,
@@ -394,9 +395,9 @@ a refusal.
 ### Packages shipped with it
 
 - `agent`: the manager. tmux sessions, launch, restarts, kicks. It knows
-  nine engines by name in `agent/manager_launch.go`: claude, copilot,
-  gemini, agy, pi, goose, bob, codex and omp. `config.CLIBackends` lists
-  fifteen; the other six (aider, opencode, kilo, muse, openhands,
+  ten engines by name in `agent/manager_launch.go`: claude, copilot,
+  gemini, agy, pi, goose, bob, codex, omp and cline. `config.CLIBackends` lists
+  sixteen; the other six (aider, opencode, kilo, muse, openhands,
   omnigent) launch as a bare binary.
 - `proxy`: the GitHub and inference proxy. Policy enforcement at the tool
   boundary: every agent write to GitHub and every model call goes through
