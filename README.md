@@ -191,7 +191,7 @@ lists the controls, which ones belong to Crux, and what is still missing.
 | `crux logs <agent>` | Show recent output. `-n N`, `--buffer`, `--full`, `--json`; `-f` follows when using `--server`. |
 | `crux kick <agent> <message \| ->` | Send work to an agent. `-` reads the message from stdin. |
 | `crux stop <agent>` | Stop an agent. |
-| `crux serve` | Serve the runtime over HTTP+JSON. `--socket`, `--listen`, `--token`, `--hive-callback`. |
+| `crux serve` | Serve the runtime over HTTP+JSON. `--socket`, `--listen`, `--token`, `--hive-callback`, `--lanes-config`. |
 | `crux agy-turn` | Internal. The runtime types this into a pane itself; do not run it by hand. |
 | `crux cline-turn` | Internal. One bounded Cline CLI turn run by the runtime for `backend: cline`; do not run it by hand. |
 | `crux --version` | Print the version. |
@@ -199,7 +199,8 @@ lists the controls, which ones belong to Crux, and what is still missing.
 Global flags: `--workdir`, `--defs` (same as `--config`), `--socket`,
 `--local`, `--server`, `--token`. Environment variables that stand in for
 them: `CRUX_DEFS`, `CRUX_SERVER`, `CRUX_TOKEN`. (`CRUX_SOCKET` is not used for
-the global `--socket`; it sets the listening socket for `crux serve --socket`.)
+the global `--socket`; it sets the listening socket for `crux serve --socket`.
+`CRUX_LANES_CONFIG` is the default for `crux serve --lanes-config`.)
 
 ## Status
 
@@ -360,6 +361,26 @@ other route. [`api/client`](api/client) goes one step further:
 `client.Runtime` is a full `crux.Runtime` over the API, and is what
 `runtime.New` returns when `CRUX_MODE=sidecar`.
 
+#### Opt-in lane routes
+
+The `/v1/lanes` routes are only present when `crux serve` is started with
+`--lanes-config` (or `$CRUX_LANES_CONFIG` set). They live in a separate
+project-authenticated auth domain; neither the unix socket nor the legacy
+admin token grants lane access — each request must carry a project
+credential in the Bearer token. The full contract, including delivery group
+semantics, receipt fencing, and replay, is at
+https://github.com/hivecommons/hive/blob/v5/src/docs/crux-lanes.md.
+
+| Route | Verb | What it does |
+|---|---|---|
+| `/v1/lanes` | GET | Registry of available lanes. |
+| `/v1/lanes/{lane}/publish` | POST | Publish a message to a lane. |
+| `/v1/lanes/{lane}/events` | GET | Replay messages from a lane. |
+| `/v1/lanes/{lane}/groups/{group}/claim` | POST | Claim delivery of a group. |
+| `/v1/lanes/{lane}/groups/{group}` | GET | State of a delivery group. |
+| `/v1/lanes/{lane}/groups/{group}/recover` | POST | Recover a group. |
+| `/v1/lanes/{lane}/groups/{group}/{ack\|nack\|renew}` | POST | Ack, nack, or renew a receipt. |
+
 ### 3. The hive callback, what crux asks the host for
 
 This layer runs the other way. Crux never holds a long-lived GitHub key, a
@@ -418,6 +439,8 @@ a refusal.
 - `logscrub`: a log handler that masks tokens and other secrets.
 - `pushbroker`: the trusted step that pushes a sandboxed agent's work with
   credentials the sandbox never sees.
+- `lanes`: opt-in JetStream durable event/work lanes with project ACLs,
+  replay, claimable delivery groups and fenced receipts.
 - `gitidentity`: the git identity each agent commits as.
 - `agentmode`: the ladder of GitHub permission tiers, one per trust level.
 - `agentparse`: parsers for the tables and lists agents print.
