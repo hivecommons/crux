@@ -479,6 +479,7 @@ by tagging Hive `crux/vX.Y.Z`. How the publish works is in
 
 Questions? Join the [Hive Commons Discord](https://hivecommons.dev/discord).
 Want to see the hive at work? [Watch the hive live on Twitch](https://www.twitch.tv/hivecommons).
+Want to talk to the maintainers live? Join the biweekly [Hive Commons community meeting](https://docs.hivecommons.dev/docs/community/meetings).
 
 ## Licence
 
