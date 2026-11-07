@@ -15,13 +15,16 @@ crux --server "$CRUX_SERVER" ps
 curl --unix-socket "$CRUX_SOCKET" http://localhost/v1/health
 ```
 
-`/v1/health` returns `version`, `agents`, `started_at` and `uptime_seconds`.
+`/v1/health` returns `version`, `agents`, `started_at` and `uptime_seconds`,
+plus `background` (the in-process loops the server runs) and `hive_callback`
+when configured.
 
 | Observation | Meaning | Action |
 | --- | --- | --- |
 | Connection refused / no socket | `crux serve` is not running | Restart it; check its stderr for a config load error (`crux: ...`) |
 | `uptime_seconds` keeps resetting | The supervisor is restart-looping the server | Read the server's stderr; fix the config it reports; do not just keep restarting |
 | `agents` lower than expected | The `--config` file defines fewer agents than you think | Check the file and `CRUX_SOCKET`: you may be talking to a different server |
+| `background` missing or empty on a server meant to run it | The credential and session refresh loops (`StartAgentTokenRefresh`, `StartCredentialWatchdog`, `StartCopilotSessionRefresh`, `StartTranscriptActivityRefresh`) are not running, so agent credentials will not be refreshed | The host embedding the server must set `Server.Background`; do not treat a 200 from `/v1/health` as proof they are running |
 | 401 / 403 | Missing or wrong bearer token | Pass the token the server was started with |
 
 ## 2. Is the hive callback reachable?
