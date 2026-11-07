@@ -24,6 +24,6 @@
 831 api/runtime.go
 1239 config/agent_runtime.go
 1084 cruxtest/recorder.go
-990 proxy/rules.go
+907 proxy/rules.go
 1082 serve/families.go
 957 watchdog/reconciler.go
