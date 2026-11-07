@@ -60,11 +60,17 @@ jobs:
           Only scaffolding is maintained in this repository: \`.github/\`, \`.goreleaser.yaml\`, \`Dockerfile\`, \`README.md\`, \`LICENSE\`."
           # Strip the YAML indentation the lines above carry.
           body="$(printf '%s\n' "$body" | sed 's/^          //')"
+          # Attempt to post/update the comment, but on fork PRs the GITHUB_TOKEN is read-only
+          # and the call will fail with 403; treat it as best-effort so the ::error:: below runs.
+          posted=1
           existing="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -1)"
           if [ -n "$existing" ]; then
-            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -f body="$body" >/dev/null
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -f body="$body" >/dev/null || posted=0
           else
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "$body"
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "$body" || posted=0
           fi
-          echo "::error::PR touches sync-owned files ($(printf '%s' "$sync_files" | tr '\n' ' ')). Source of truth is hivecommons/hive src/crux."
+          if [ "$posted" = 0 ]; then
+            echo "::warning::could not post the sync-guard comment (GITHUB_TOKEN is read-only on pull_request runs from forks); the pointer follows as an error annotation instead."
+          fi
+          echo "::error::PR touches sync-owned files ($(printf '%s' "$sync_files" | tr '\n' ' ')). Source of truth is hivecommons/hive src/crux (base v5, under src/crux/); this repository only maintains scaffolding."
           exit 1
