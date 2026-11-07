@@ -63,7 +63,8 @@ jobs:
           # Attempt to post/update the comment, but on fork PRs the GITHUB_TOKEN is read-only
           # and the call will fail with 403; treat it as best-effort so the ::error:: below runs.
           posted=1
-          existing="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -1)"
+          # Guard lookup against transient API failures (rate limit, 5xx) so whole path is best-effort.
+          existing="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -1 || true)"
           if [ -n "$existing" ]; then
             gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -f body="$body" >/dev/null || posted=0
           else
