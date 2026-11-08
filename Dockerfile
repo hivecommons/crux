@@ -2,9 +2,11 @@
 # drives to host agent processes. Built by goreleaser (.goreleaser.yaml) from
 # the already cross-compiled binary for each platform; `docker build` from a
 # checkout works too via the builder stage.
-ARG GO_IMAGE=golang:1.26-alpine
-
-FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS build
+#
+# The Go base is a literal FROM, not an ARG: Dependabot's docker ecosystem
+# (.github/dependabot.yml) only sees literal image references, and nothing
+# passes a --build-arg for the builder image anyway.
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS build
 ARG TARGETOS TARGETARCH VERSION=dev
 WORKDIR /src
 COPY go.mod go.sum ./
