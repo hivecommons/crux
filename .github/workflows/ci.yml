@@ -103,6 +103,24 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  lanes-integration:
+    # Mirrors hive's v2-ci.yml "Durable Crux lane and Hive participant
+    # integration" step. The jobs above run ./lanes ./api ./serve only with
+    # -short, which skips the embedded-JetStream paths; this lane runs them for
+    # real. GOWORK=off keeps the module resolving on its own, as in hive.
+    name: lanes/api/serve integration (-race, no -short)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: go test -race ./lanes ./api ./serve
+        run: GOWORK=off go test -race -timeout 3m ./lanes ./api ./serve
+
   coverage:
     # Same gate as hive's "Check per-package coverage" step (v2-tests.yml,
     # coverage-hourly.yml): every package scored against a 90% default floor

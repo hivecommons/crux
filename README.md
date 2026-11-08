@@ -481,6 +481,13 @@ Questions? Join the [Hive Commons Discord](https://hivecommons.dev/discord).
 Want to see the hive at work? [Watch the hive live on Twitch](https://www.twitch.tv/hivecommons).
 Want to talk to the maintainers live? Join the biweekly [Hive Commons community meeting](https://docs.hivecommons.dev/docs/community/meetings).
 
+## Contributing
+
+Commits must be signed off (`git commit -s`, the DCO). PR titles start with an
+emoji: ✨ feature, 🐛 fix, 📖 docs, 🌱 chore, ⚠️ breaking. Until 2026-11-16 code
+changes go to hivecommons/hive `src/crux` (see
+[hivecommons/hive#17004](https://github.com/hivecommons/hive/issues/17004)).
+
 ## Licence
 
 Apache-2.0. Open source under Hive Commons.

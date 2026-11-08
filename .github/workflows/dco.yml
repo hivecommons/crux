@@ -1,0 +1,42 @@
+name: DCO
+
+# Every commit in a PR must carry a Signed-off-by trailer (`git commit -s`).
+# Plain shell instead of a third-party action so there is no new pin to trust.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  dco:
+    name: DCO sign-off
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Check Signed-off-by on every commit
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          bad=0
+          # Merge commits are skipped: they are not authored contributions.
+          for sha in $(git log --no-merges --format=%H "${BASE_SHA}..${HEAD_SHA}"); do
+            if ! git log -1 --format=%B "$sha" | grep -qE '^Signed-off-by: .+ <.+>'; then
+              echo "::error::commit $sha has no Signed-off-by trailer"
+              bad=1
+            fi
+          done
+          if [ "$bad" -ne 0 ]; then
+            echo "Sign off with: git commit -s --amend (last commit)" >&2
+            echo "or: git rebase --signoff ${BASE_SHA} && git push --force-with-lease" >&2
+            exit 1
+          fi
+          echo "All commits are signed off."
