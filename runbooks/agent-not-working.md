@@ -17,9 +17,9 @@ curl --unix-socket "$CRUX_SOCKET" http://localhost/v1/health
 
 `/v1/health` returns `version`, `agents`, `started_at` and `uptime_seconds`,
 plus `background` (the in-process loops the server runs) and `hive_callback`
-when configured. Servers built with the tmux probe also report `tmux` (where
-tmux resolves on PATH); older servers omit the field, which on its own does
-not indicate a problem.
+when configured. A `tmux` field (where tmux resolves on PATH) is proposed in
+hive#17382 but has not shipped; no current server reports it, so its absence
+is expected and not a problem.
 
 | Observation | Meaning | Action |
 | --- | --- | --- |
@@ -27,7 +27,7 @@ not indicate a problem.
 | `uptime_seconds` keeps resetting | The supervisor is restart-looping the server | Read the server's stderr; fix the config it reports; do not just keep restarting |
 | `agents` lower than expected | The `--config` file defines fewer agents than you think | Check the file and `CRUX_SOCKET`: you may be talking to a different server |
 | `background` missing or empty on a server meant to run it | The credential and session refresh loops (`StartAgentTokenRefresh`, `StartCredentialWatchdog`, `StartCopilotSessionRefresh`, `StartTranscriptActivityRefresh`) are not running, so agent credentials will not be refreshed | The host embedding the server must set `Server.Background`; do not treat a 200 from `/v1/health` as proof they are running |
-| `tmux` present but empty in `/v1/health` | tmux is missing from the server's PATH, so no agent can start | Install tmux or fix the PATH the server runs with, then restart it. A server that omits the field entirely predates the probe; check `which tmux` by hand |
+| `tmux` present but empty in `/v1/health` (only once hive#17382 ships) | tmux is missing from the server's PATH, so no agent can start | Install tmux or fix the PATH the server runs with, then restart it. Until then, check `which tmux` by hand |
 | 401 / 403 | Missing or wrong bearer token | Pass the token the server was started with |
 
 ## 2. Is the hive callback reachable?
