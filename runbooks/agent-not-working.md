@@ -16,8 +16,8 @@ curl --unix-socket "$CRUX_SOCKET" http://localhost/v1/health
 ```
 
 `/v1/health` returns `version`, `agents`, `started_at`, `uptime_seconds` and
-`tmux` (where tmux resolves on PATH), plus `background` (the in-process loops the server runs) and `hive_callback`
-when configured.
+`tmux` (where tmux resolves on PATH), plus `background` (the in-process loops
+the server runs) and `hive_callback` when configured.
 
 | Observation | Meaning | Action |
 | --- | --- | --- |
