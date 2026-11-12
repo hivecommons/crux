@@ -50,6 +50,9 @@ go install github.com/hivecommons/crux/cmd/crux@latest
 docker run --rm ghcr.io/hivecommons/crux:0.4.0 --help
 ```
 
+The container build and release Dockerfiles pin their base images by digest;
+Dependabot proposes updates to those pins.
+
 Or download a release archive from the
 [releases page](https://github.com/hivecommons/crux/releases). There is
 one for darwin and linux, each for amd64 and arm64. The checksums are
