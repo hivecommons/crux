@@ -18,7 +18,7 @@ try to do things they were never asked to do. Crux handles that part:
   session alive in the background, so the agent keeps running after you
   close your window.
 - It supports many agent CLIs behind one interface: Claude, Copilot,
-  Gemini, Goose, Codex, Aider and Bob.
+  Gemini, Google Antigravity (`agy`), Goose, Codex, Aider, Bob and Cline.
 - It sends work to a running agent. Crux calls this a "kick". A small
   reminder to a stuck agent is a "nudge".
 - It notices when an agent stalls or crashes over and over, and restarts
