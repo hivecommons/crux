@@ -210,6 +210,7 @@ func TestDefaultSecurityScannerCredentialExfilBypasses(t *testing.T) {
 		"cat ~/.ssh/id_rsa",
 		"cat /var/run/secrets/kubernetes.io/serviceaccount/token",
 		"printenv GH_TOKEN",
+		"printenv GITHUB_TOKEN",
 		"echo $GH_TOKEN",
 		"echo $GITHUB_TOKEN",
 		// Previously missed: quoting around the variable.
@@ -224,6 +225,7 @@ func TestDefaultSecurityScannerCredentialExfilBypasses(t *testing.T) {
 		// Previously missed: readers other than cat.
 		"less ~/.ssh/id_rsa",
 		"head -c 100 ~/.ssh/id_rsa",
+		"tail -n 5 $HOME/.ssh/id_rsa",
 		"base64 ~/.ssh/id_rsa",
 		"tail /var/run/secrets/kubernetes.io/serviceaccount/token",
 	} {

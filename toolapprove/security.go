@@ -121,9 +121,9 @@ var (
 	// variants a normal command line uses, but it does not follow variable
 	// indirection, and it deliberately omits bare env/printenv dumps, which
 	// are routine and would make the check too noisy to keep enabled.
-	credentialExfilRe = regexp.MustCompile(`(?i)\b(?:cat|less|more|head|tail|tac|base64|xxd|od|strings)\s+["']?(?:~|\$\{?HOME\}?|/root)["']?/\.ssh/` +
-		`|\b(?:cat|less|more|head|tail|tac|base64|xxd|od|strings)\s+["']?/var/run/secrets/` +
-		`|\bprintenv\b.*\bTOKEN\b` +
+	credentialExfilRe = regexp.MustCompile(`(?i)\b(?:cat|less|more|head|tail|tac|base64|xxd|od|strings)(?:\s+-\S+(?:\s+\d+)?)*\s+["']?(?:~|\$\{?HOME\}?|/root)["']?/\.ssh/` +
+		`|\b(?:cat|less|more|head|tail|tac|base64|xxd|od|strings)(?:\s+-\S+(?:\s+\d+)?)*\s+["']?/var/run/secrets/` +
+		`|\bprintenv\s+.*TOKEN` +
 		`|\becho\s+["']?\$\{?(?:GH_TOKEN|GITHUB_TOKEN)\b`)
 )
 
