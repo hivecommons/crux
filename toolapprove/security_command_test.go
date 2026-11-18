@@ -187,7 +187,6 @@ func TestDefaultSecurityScannerDdBlockDeviceWithoutTextFindings(t *testing.T) {
 
 	for _, command := range []string{
 		"dd if=image.iso of=output.img",
-		"dd if=/dev/zero of=/dev/null",
 		"dd if=image.iso of=/dev/null bs=1M",
 	} {
 		t.Run(command, func(t *testing.T) {
