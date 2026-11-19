@@ -476,20 +476,16 @@ resolution, a `crux serve` smoke and a goreleaser snapshot. The floors are
 copied from Hive's `v2-tests.yml`; change them there first.
 
 So: file issues and code changes in
-[hivecommons/hive](https://github.com/hivecommons/hive). Releases are cut
+[hivecommons/hive](https://github.com/hivecommons/hive), until the cutover in
+[hivecommons/hive#17004](https://github.com/hivecommons/hive/issues/17004)
+is decided and done. Commits must be signed off (`git commit -s`, the DCO), and
+PR titles start with an emoji: ✨ feature, 🐛 fix, 📖 docs, 🌱 chore, ⚠️ breaking. Releases are cut
 by tagging Hive `crux/vX.Y.Z`. How the publish works is in
 [`src/docs/crux-publish.md`](https://github.com/hivecommons/hive/blob/v5/src/docs/crux-publish.md).
 
 Questions? Join the [Hive Commons Discord](https://hivecommons.dev/discord).
 Want to see the hive at work? [Watch the hive live on Twitch](https://www.twitch.tv/hivecommons).
 Want to talk to the maintainers live? Join the biweekly [Hive Commons community meeting](https://docs.hivecommons.dev/docs/community/meetings).
-
-## Contributing
-
-Commits must be signed off (`git commit -s`, the DCO). PR titles start with an
-emoji: ✨ feature, 🐛 fix, 📖 docs, 🌱 chore, ⚠️ breaking. Until 2026-11-16 code
-changes go to hivecommons/hive `src/crux` (see
-[hivecommons/hive#17004](https://github.com/hivecommons/hive/issues/17004)).
 
 ## Licence
 
