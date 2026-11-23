@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/hivecommons/crux/authz"
+	"github.com/hivecommons/crux/config"
 	"github.com/hivecommons/crux/effects"
 	"github.com/hivecommons/crux/gitidentity"
 	"github.com/hivecommons/crux/logscrub"
@@ -49,7 +50,7 @@ const pushTokenEnvVar = "HIVE_PUSH_TOKEN"
 const pushCredentialHelper = `!f() { echo username=x-access-token; echo "password=$` + pushTokenEnvVar + `"; }; f`
 
 var credentialEnvPrefixes = []string{
-	"GITHUB_TOKEN=", "GH_TOKEN=", "HIVE_GITHUB_TOKEN=", "COPILOT_GITHUB_TOKEN=",
+	"GITHUB_TOKEN=", "GH_TOKEN=", "HIVE_GITHUB_TOKEN=", "COPILOT_GITHUB_TOKEN=", "GITLAB_TOKEN=", "GITEA_TOKEN=", "FORGEJO_TOKEN=",
 	"GIT_ASKPASS=", "SSH_ASKPASS=",
 }
 
@@ -655,6 +656,12 @@ func PushEnv(env []string) []string {
 		blocked := false
 		for _, prefix := range credentialEnvPrefixes {
 			if strings.HasPrefix(entry, prefix) {
+				blocked = true
+				break
+			}
+		}
+		for _, name := range config.ExtraCredentialEnvVars() {
+			if strings.HasPrefix(entry, name+"=") {
 				blocked = true
 				break
 			}
