@@ -16,7 +16,6 @@ import (
 	"github.com/hivecommons/crux/config"
 	"github.com/hivecommons/crux/effects"
 	"github.com/hivecommons/crux/keystore"
-	"github.com/hivecommons/crux/pushbroker"
 	"github.com/hivecommons/crux/sandbox"
 	"github.com/hivecommons/crux/watchdog"
 )
@@ -812,7 +811,7 @@ type Manager struct {
 	sandboxRunner                   sandboxCommandRunner
 	// sandboxRunPersister overrides persistSandboxRun in tests.
 	sandboxRunPersister  func(workDir string, entry SandboxRunHistoryEntry) error
-	sandboxPushMinter    pushbroker.TokenMinter
+	sandboxGit           sandboxGitWiring
 	sandboxPRClient      PRCreator
 	sandboxMutation      effects.Boundary
 	sandboxAuditCallback atomic.Pointer[func(agent, action, detail string)]
