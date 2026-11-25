@@ -6,7 +6,7 @@
 # The Go base is a literal FROM, not an ARG: Dependabot's docker ecosystem
 # (.github/dependabot.yml) only sees literal image references, and nothing
 # passes a --build-arg for the builder image anyway.
-FROM --platform=$BUILDPLATFORM golang:1.26-alpine@sha256:30b1e546a9c7fa3b747c2bdba3a0c7bdf3a02ebb4c5b8405d2f948d7e8aac4ec AS build
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine@sha256:70bd7ddea8b6cbe5d6943cde279d6b67feb10cc924fb9100d1d8757c1575b280 AS build
 ARG TARGETOS TARGETARCH VERSION=dev
 WORKDIR /src
 COPY go.mod go.sum ./
