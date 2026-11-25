@@ -12,13 +12,16 @@ import (
 	"testing"
 
 	"github.com/hivecommons/crux"
+	"github.com/hivecommons/crux/agentmode"
 	"github.com/hivecommons/crux/config"
 )
 
 // failingMinter returns the configured error from WriteAgentToken.
 type failingMinter struct{ err error }
 
-func (f *failingMinter) WriteAgentToken(context.Context, string, string, int) error { return f.err }
+func (f *failingMinter) WriteAgentToken(context.Context, string, agentmode.TokenTier, int) error {
+	return f.err
+}
 
 type fakeNetErr struct{}
 
