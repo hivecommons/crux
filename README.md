@@ -419,10 +419,10 @@ a refusal.
 ### Packages shipped with it
 
 - `agent`: the manager. tmux sessions, launch, restarts, kicks. It knows
-  ten engines by name in `agent/manager_launch.go`: claude, copilot,
-  gemini, agy, pi, goose, bob, codex, omp and cline. `config.CLIBackends` lists
-  sixteen; the other six (aider, opencode, kilo, muse, openhands,
-  omnigent) launch as a bare binary.
+  eleven engines by name in `agent/manager_launch.go`: claude, copilot,
+  gemini, agy, pi, goose, bob, codex, omp, opencode and cline.
+  `config.CLIBackends` lists sixteen; the other five (aider, kilo, muse,
+  openhands, omnigent) launch as a bare binary.
 - `proxy`: the GitHub and inference proxy. Policy enforcement at the tool
   boundary: every agent write to GitHub and every model call goes through
   it, with budgets and deny rules.
