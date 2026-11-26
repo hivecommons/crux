@@ -7,6 +7,8 @@ import (
 	"net"
 	"net/url"
 	"strings"
+
+	"github.com/hivecommons/crux/agentmode"
 )
 
 // DefaultForgeBaseURL is the forge a repo is cloned from and pushed to when
@@ -43,11 +45,11 @@ type ForgeRemoteResolver func(repo string) (remote ForgeRemote, ok bool, err err
 // forge minter does it however its forge allows.
 type TieredMinter interface {
 	TokenMinter
-	WithTier(tier string) TokenMinter
+	WithTier(tier agentmode.TokenTier) TokenMinter
 }
 
 // WithTier returns m narrowed to tier, or m unchanged when it cannot narrow.
-func WithTier(m TokenMinter, tier string) TokenMinter {
+func WithTier(m TokenMinter, tier agentmode.TokenTier) TokenMinter {
 	switch minter := m.(type) {
 	case nil:
 		return nil
@@ -172,8 +174,9 @@ func CredentialStoreLine(base, token string) (string, error) {
 // access token), so every tier gets the same credential; WithTier is a no-op.
 type StaticTokenMinter struct {
 	// Token returns the current token, so a rotated secret is picked up on
-	// the next mint.
-	Token func() string
+	// the next mint. An error fails the mint, so a bad token source never
+	// reads as an empty token.
+	Token func() (string, error)
 }
 
 // MintPushToken implements TokenMinter.
@@ -181,7 +184,11 @@ func (m StaticTokenMinter) MintPushToken(context.Context, string) (string, error
 	if m.Token == nil {
 		return "", errors.New("pushbroker: static forge token source is not configured")
 	}
-	token := strings.TrimSpace(m.Token())
+	raw, err := m.Token()
+	if err != nil {
+		return "", fmt.Errorf("pushbroker: forge token: %w", err)
+	}
+	token := strings.TrimSpace(raw)
 	if token == "" {
 		return "", errors.New("pushbroker: forge token is empty")
 	}

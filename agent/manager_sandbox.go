@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hivecommons/crux"
+	"github.com/hivecommons/crux/agentmode"
 	"github.com/hivecommons/crux/config"
 	"github.com/hivecommons/crux/effects"
 	"github.com/hivecommons/crux/kubejob"
@@ -173,7 +174,7 @@ func (m *Manager) validateSandboxKickLocked(agent *AgentProcess) (string, error)
 	switch runtime {
 	case config.SandboxRuntimeJob:
 		job := agent.Config.SandboxJob(m.sandboxConfig)
-		if strings.TrimSpace(job.WorkspaceClaim) == "" {
+		if !job.CopiesWorkspace() && strings.TrimSpace(job.WorkspaceClaim) == "" {
 			return "", fmt.Errorf("agent %s sandbox job runtime requires job.workspace_claim — the PVC hive's sandbox workspace root lives on, mounted RWX so the Job can see it from another node", agent.Name)
 		}
 	case config.SandboxRuntimeOpenShell:
@@ -341,6 +342,17 @@ func (m *Manager) startSandboxKickLocked(agent *AgentProcess, message string) er
 			}
 		}
 	}
+	// Per-repo open-PRs mode: a kick that would open a NEW PR in a repo the
+	// host refuses runs without push or PR client, so no branch is pushed
+	// that cannot become a PR. A push to an existing PR opens nothing and
+	// is left alone.
+	if pushEnabled && spec.TargetPR == 0 && m.project.RepoPRRefusal != nil {
+		if reason := m.project.RepoPRRefusal(agent.Name, m.project.Org+"/"+repo, message); reason != "" {
+			pushMinter, prClient, pushEnabled = nil, nil, false
+			m.logger.Info("sandbox kick runs without push: the repo's open-PRs mode refuses a new PR", "name", agent.Name, "repo", repo, "reason", reason)
+			m.auditSandbox(agent.Name, crux.AuditActionAgentWriteRefused, "repo="+m.project.Org+"/"+repo+", op=open_pr, gate=open-prs, via=sandbox, outcome=refused, reason="+reason)
+		}
+	}
 	go m.runSandboxKick(runCtx, agent.Name, runtime, spec, launcher, runner, cloneMinter, pushMinter, pushEnabled, prClient, prReader, targetReader, mutationBoundary)
 	return nil
 }
@@ -349,7 +361,7 @@ func (m *Manager) sandboxWorkspaceDirLocked() string {
 	return sandbox.WorkspaceRoot(m.sandboxConfig.WorkspaceDir, m.workDir)
 }
 
-func (m *Manager) tieredSandboxMinterLocked(tier string) pushbroker.TokenMinter {
+func (m *Manager) tieredSandboxMinterLocked(tier agentmode.TokenTier) pushbroker.TokenMinter {
 	return pushbroker.WithTier(m.sandboxGit.pushMinter, tier)
 }
 
@@ -600,10 +612,13 @@ func JobOptionsFromConfig(job config.SandboxJobConfig) kubejob.Options {
 	opts := kubejob.Options{
 		WorkspaceClaim:      job.WorkspaceClaim,
 		WorkspaceClaimMount: job.WorkspaceClaimMount,
+		WorkspaceTransport:  job.WorkspaceTransport,
+		WorkspaceSizeLimit:  job.WorkspaceSizeLimit,
 		NodeSelector:        job.NodeSelector,
 		Affinity:            job.Affinity,
 		ServiceAccount:      job.ServiceAccount,
 		SchedulerName:       job.SchedulerName,
+		RuntimeClassName:    job.EffectiveRuntimeClassName(os.Getenv),
 		EnvFromSecrets:      append([]string(nil), job.EnvFromSecrets...),
 		ImagePullSecrets:    append([]string(nil), job.ImagePullSecrets...),
 		TTLSeconds:          job.TTLSeconds,
