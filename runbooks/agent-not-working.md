@@ -69,6 +69,20 @@ making things worse, set `HIVE_WATCHDOG_PAUSE=1` (also `true`, `yes`, `on`)
 on the deployment: heal drops to observe at the next config resolve, with no
 redeploy. It can only reduce authority and never turns the watchdog on.
 
+### Nudge or restart one agent
+
+```sh
+crux --server "$CRUX_SERVER" logs -n 200 NAME   # -f follows the ring buffer
+crux --server "$CRUX_SERVER" kick NAME "message"
+crux --server "$CRUX_SERVER" stop NAME
+crux --server "$CRUX_SERVER" run -detach NAME
+```
+
+`kick` sends a message to an agent that is up but idle; `-` reads the message
+from stdin. "Restart the agent" in the table above is `stop` then `run`;
+`run` also takes a definition file path instead of a name. `-f` on `logs` is
+only available with `--server`.
+
 ## 4. Stop an agent that is doing harm
 
 ```sh
