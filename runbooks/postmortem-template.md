@@ -1,33 +1,30 @@
 # Postmortem: <short title>
 
-Blameless. Describe what the system and process allowed, not who erred.
-Fill this in after any incident that reached users.
+Copy this file into the tracking issue or a PR description; do not commit
+filled-in postmortems containing credentials or personal data.
 
-- **Incident:** link to the incident issue
-- **Date (UTC):**
-- **Duration:**
-- **Impact:**
-
-## Summary
-
-Two or three sentences.
+- **Date / duration:** <start - end, timezone>
+- **Severity / user impact:** <who was affected, which routes, how badly>
+- **Detection:** <how it was noticed; time from start to detection>
 
 ## Timeline
 
-| Time (UTC) | Event |
-| --- | --- |
+| Time | Event |
+|---|---|
 | | |
 
 ## Root cause
 
-What failed and why it was not caught earlier.
+<What failed and why. Include the commit SHA or deployment change if relevant.>
 
-## What went well / what did not
+## What went well / what went poorly
+
+-
 
 ## Action items
 
-Each item has an owner and a tracking issue.
-
-| Action | Owner | Issue |
-| --- | --- | --- |
-| | | |
+| Action | Owner | Issue/PR |
+|---|---|---|
+| Add or improve detection (probe, alert, log line) | | |
+| Add a regression test | | |
+| Update the runbooks if steps were missing or wrong | | |

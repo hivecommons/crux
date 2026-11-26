@@ -1,29 +1,31 @@
 # Incident: <short title>
 
-Copy this file into the incident issue and keep the log current.
+Copy this file into the tracking issue while the incident is live; do not
+commit filled-in incidents containing credentials or personal data. Once the
+incident is resolved, continue in [postmortem-template.md](postmortem-template.md).
 
-- **Status:** investigating | mitigating | resolved
-- **Started (UTC):**
-- **Detected by:**
+- **Status:** investigating | mitigating | monitoring | resolved
+- **Severity:** <SEV1 users cannot use Crux / SEV2 degraded / SEV3 minor>
+- **Started (UTC) / detected by:** <time, probe, alert or reporter>
 - **Incident lead:**
-- **Affected versions:** (`crux --version`)
 
-## Impact
+## User impact
 
-Who is affected and how. State what users see, not the suspected cause.
+<Who is affected, which routes or agents, and since when. Update as it changes.>
 
-## Log
+## Triage
 
-| Time (UTC) | What happened or was learned | Who |
-| --- | --- | --- |
+1. Is `GET /v1/health` failing? Follow [agent-not-working.md](agent-not-working.md).
+2. Did it start after a release? Follow [release-rollback.md](release-rollback.md).
+3. Record the version in use (`crux --version`) and the last known good version.
+
+## Updates
+
+| Time (UTC) | Update | Next check |
+|---|---|---|
 | | | |
 
 ## Mitigation
 
-What stopped the impact (see [agent-not-working.md](agent-not-working.md) or
-[release-rollback.md](release-rollback.md)), and when.
-
-## Next
-
-- [ ] Impact has ended and was verified
-- [ ] Postmortem opened from [postmortem-template.md](postmortem-template.md)
+<What was done to stop the impact (rollback, restart, config change) and how
+recovery was verified.>
