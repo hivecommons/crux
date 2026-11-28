@@ -195,9 +195,20 @@ lists the controls, which ones belong to Crux, and what is still missing.
 | `crux kick <agent> <message \| ->` | Send work to an agent. `-` reads the message from stdin. |
 | `crux stop <agent>` | Stop an agent. |
 | `crux serve` | Serve the runtime over HTTP+JSON. `--socket`, `--listen`, `--token`, `--hive-callback`, `--lanes-config`. |
+| `crux runs start\|status\|cancel\|list\|restart\|history` | Contained command runs on a `crux serve` and their saved results. Needs `--server`. |
+| `crux checkout add\|rm\|list` | Pinned checkouts under `<workdir>/checkouts`. `-allow` or `$CRUX_CHECKOUT_ALLOWLIST` limits which repos may be added. |
+| `crux gate open\|list\|answer\|wait` | Human gates on a `crux serve`: a run waits until a person answers. Needs `--server`. |
+| `crux cmdlog list\|show <run>` | The commands a contained run dispatched. Needs `--server`. |
+| `crux signal emit\|list <run>` | A contained run's turn signals: where the turn is and how it ended. Needs `--server`. |
+| `crux step run\|list\|show <run>` | Schema-checked agent steps inside a `runs start --profile agent` session. Needs `--server`. |
 | `crux agy-turn` | Internal. The runtime types this into a pane itself; do not run it by hand. |
+| `crux claude-turn` | Internal. One headless Claude Code turn for an agent with `headless_turns`; do not run it by hand. |
 | `crux cline-turn` | Internal. One bounded Cline CLI turn run by the runtime for `backend: cline`; do not run it by hand. |
+| `crux job-bridge` | Internal. A Kubernetes Job's container command; Hive runs it, not you. |
 | `crux --version` | Print the version. |
+
+Each of `runs`, `gate`, `cmdlog`, `signal` and `step` prints its own flags
+with `crux <command> help`; `crux --help` covers `checkout`.
 
 Global flags: `--workdir`, `--defs` (same as `--config`), `--socket`,
 `--local`, `--server`, `--token`. Environment variables that stand in for
